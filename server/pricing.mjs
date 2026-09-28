@@ -94,3 +94,20 @@ export function activatePriceBook(id) {
 }
 
 ensureSeedPriceBook()
+
+
+export function updateDraftRate(id,itemCode,rateValue) {
+  const row=db.prepare('SELECT * FROM price_books WHERE id=?').get(id)
+  if(!row) throw Object.assign(new Error('Прайс не найден'),{status:404})
+  if(row.status!=='draft') throw Object.assign(new Error('Изменять ставки можно только в draft-версии'),{status:409})
+
+  const rate=Number(rateValue)
+  if(!Number.isFinite(rate)||rate<0) throw Object.assign(new Error('Ставка должна быть неотрицательным числом'),{status:400})
+
+  const rates=parseJSON(row.rates_json,{})
+  if(!(itemCode in rates)) throw Object.assign(new Error(`Позиция ${itemCode} не найдена в прайсе`),{status:404})
+  rates[itemCode]=rate
+
+  db.prepare('UPDATE price_books SET rates_json=? WHERE id=?').run(JSON.stringify(rates),id)
+  return rowToPriceBook(db.prepare('SELECT * FROM price_books WHERE id=?').get(id))
+}
