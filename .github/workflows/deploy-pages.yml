@@ -37,6 +37,9 @@ jobs:
       - name: Smoke test local API
         run: npm run test:api
 
+      - name: Smoke test production OTP webhook
+        run: npm run test:otp
+
       - name: Build
         run: npm run build
 
