@@ -3,3 +3,6 @@ dist/
 server/data.json
 .env
 .env.*
+server/*.sqlite
+server/*.sqlite-wal
+server/*.sqlite-shm
