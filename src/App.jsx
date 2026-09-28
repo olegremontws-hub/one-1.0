@@ -6,7 +6,7 @@ import {
 } from './domain/model.js'
 import { makeBackup, downloadBackup, readBackupFile } from './lib/backup.js'
 import {
-  REMOTE_ENABLED, hasRemoteSession, loadRemoteState, logoutRemote, requestRemoteOtp,
+  REMOTE_ENABLED, hasRemoteSession, loadActivePricing, loadRemoteState, logoutRemote, requestRemoteOtp,
   saveRemoteProfile, saveRemoteState, verifyRemoteOtp,
 } from './lib/remote.js'
 import { readJSON, removeKey, writeJSON } from './lib/storage.js'
@@ -231,11 +231,21 @@ export default function App() {
   const [otpDevCode,setOtpDevCode]=useState('')
   const [remoteStatus,setRemoteStatus]=useState(REMOTE_ENABLED?(initialRemoteSession?'connecting':'api'):'local')
   const [remoteReady,setRemoteReady]=useState(!REMOTE_ENABLED)
+  const [pricing,setPricing]=useState(null)
 
   const authenticated=Boolean(profile)
   const account=useMemo(()=>profile?{profile,clientType,contact,method}:null,[profile,clientType,contact,method])
 
   useEffect(()=>writeJSON(ORDERS_KEY,orders),[orders])
+
+  useEffect(()=>{
+    if(!REMOTE_ENABLED) return
+    let cancelled=false
+    loadActivePricing()
+      .then(value=>{if(!cancelled) setPricing(value)})
+      .catch(()=>{if(!cancelled) setPricing(null)})
+    return ()=>{cancelled=true}
+  },[])
 
   useEffect(()=>{
     if(!REMOTE_ENABLED) return
@@ -497,7 +507,7 @@ export default function App() {
       {screen==='auth'&&<section className="auth-card">{renderAuth()}</section>}
       {screen==='success'&&<section className="auth-card"><SuccessStep clientType={clientType} onOrders={()=>setScreen('orders')} onCreateOrder={createOrder}/></section>}
       {screen==='orders'&&<OrdersDashboard orders={orders} onCreateOrder={createOrder} onOpenOrder={openOrder} onEditOrder={editOrder} onDuplicate={duplicateOrder} onDelete={deleteOrder} onExport={exportData} onImport={importData} notice={notice} storageMode={remoteStatus}/>} 
-      {screen==='create-order'&&<CreateOrder initialOrder={editingOrder} onCancel={()=>setScreen('orders')} onSave={saveOrder}/>}
+      {screen==='create-order'&&<CreateOrder initialOrder={editingOrder} onCancel={()=>setScreen('orders')} onSave={saveOrder} pricing={pricing}/>}
       {screen==='order-detail'&&<OrderDetails order={selectedOrder} onBack={()=>setScreen('orders')} onEdit={()=>selectedOrder&&editOrder(selectedOrder.id)} onStatusChange={status=>selectedOrder&&changeStatus(selectedOrder.id,status)} onDuplicate={()=>selectedOrder&&duplicateOrder(selectedOrder.id)} onDelete={()=>selectedOrder&&deleteOrder(selectedOrder.id)}/>}
     </main>
     <footer className="footer"><span>© Bath Dream</span><span>{authenticated?'Клиентский кабинет · рабочая MVP':'Клиентский модуль · MVP'}</span></footer>
