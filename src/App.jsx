@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import CreateOrder from './components/CreateOrder.jsx'
 import {
-  CLIENT_TYPES, PROFILE_FIELDS, money, validateProfileField,
+  CLIENT_TYPES, ORDER_STATUSES, PROFILE_FIELDS, cloneOrder, money,
+  statusLabel, validateProfileField,
 } from './domain/model.js'
+import { makeBackup, downloadBackup, readBackupFile } from './lib/backup.js'
 import { readJSON, removeKey, writeJSON } from './lib/storage.js'
 
 const ACCOUNT_KEY='bathdream.account'
@@ -110,25 +112,59 @@ function SuccessStep({clientType,onOrders,onCreateOrder}) {
   </div>
 }
 
-function OrdersDashboard({orders,onCreateOrder,onOpenOrder,onEditOrder}) {
+function StatusBadge({status}) {
+  return <span className={`status status--${status||'draft'}`}>{statusLabel(status)}</span>
+}
+
+function OrdersDashboard({orders,onCreateOrder,onOpenOrder,onEditOrder,onDuplicate,onDelete,onExport,onImport,notice}) {
+  const inputRef=useRef(null)
+
   return <section className="workspace">
-    <div className="workspace__head"><div><p className="eyebrow">Кабинет клиента</p><h1>Мои заказы</h1><p className="workspace__subtitle">Черновики сохраняются в браузере автоматически.</p></div><button className="button button--compact" type="button" onClick={onCreateOrder}>+ Создать заказ</button></div>
+    <div className="workspace__head">
+      <div><p className="eyebrow">Кабинет клиента</p><h1>Мои заказы</h1><p className="workspace__subtitle">Черновики сохраняются автоматически. Данные можно выгрузить резервной копией.</p></div>
+      <button className="button button--compact" type="button" onClick={onCreateOrder}>+ Создать заказ</button>
+    </div>
+
+    <div className="data-toolbar">
+      <div><strong>Данные MVP</strong><span>Локальное хранилище браузера</span></div>
+      <div className="data-toolbar__actions">
+        <button type="button" onClick={onExport}>Экспорт JSON</button>
+        <button type="button" onClick={()=>inputRef.current?.click()}>Импорт JSON</button>
+        <input ref={inputRef} type="file" accept="application/json,.json" hidden onChange={e=>{const file=e.target.files?.[0]; if(file) onImport(file); e.target.value=''}}/>
+      </div>
+    </div>
+
+    {notice&&<div className={`notice notice--${notice.type}`}>{notice.text}</div>}
 
     {orders.length===0?<div className="empty-state"><div className="empty-state__icon">＋</div><h2>Заказов пока нет</h2><p>Создайте первый заказ: объект → помещения → геометрия → демонтаж → смета.</p><button className="button button--primary empty-state__button" type="button" onClick={onCreateOrder}>Создать заказ</button></div>:
     <div className="order-list">{orders.map(order=><article className="order-card" key={order.id}>
-      <div className="order-card__top"><div><span className="status status--draft">Черновик</span><h2>Заказ №{order.id}</h2></div><strong>{money(order.total)} ₽</strong></div>
+      <div className="order-card__top"><div><StatusBadge status={order.status}/><h2>Заказ №{order.id}</h2></div><strong>{money(order.total)} ₽</strong></div>
       <dl><div><dt>Объект</dt><dd>{order.objectLabel||'—'}</dd></div><div><dt>Адрес</dt><dd>{order.address||'—'}</dd></div><div><dt>Помещения</dt><dd>{order.rooms?.length||0}</dd></div></dl>
-      <div className="order-card__actions"><button className="secondary-button secondary-button--inline" type="button" onClick={()=>onOpenOrder(order.id)}>Открыть заказ</button><button className="secondary-button secondary-button--inline" type="button" onClick={()=>onEditOrder(order.id)}>Редактировать расчёт</button></div>
+      <div className="order-card__actions">
+        <button className="secondary-button secondary-button--inline" type="button" onClick={()=>onOpenOrder(order.id)}>Открыть</button>
+        <button className="secondary-button secondary-button--inline" type="button" onClick={()=>onEditOrder(order.id)}>Редактировать</button>
+        <button className="secondary-button secondary-button--inline" type="button" onClick={()=>onDuplicate(order.id)}>Дублировать</button>
+        <button className="danger-link" type="button" onClick={()=>onDelete(order.id)}>Удалить</button>
+      </div>
     </article>)}</div>}
   </section>
 }
 
-function OrderDetails({order,onBack,onEdit}) {
+function OrderDetails({order,onBack,onEdit,onStatusChange,onDuplicate,onDelete}) {
   if(!order) return null
   const logistics=order.logistics||{}
+
   return <section className="workspace order-details">
     <button className="back-link" type="button" onClick={onBack}>← Мои заказы</button>
-    <div className="workspace__head"><div><p className="eyebrow">Заказ №{order.id}</p><h1>{order.objectLabel}</h1><p className="workspace__subtitle">{order.address}</p></div><button className="button button--compact" type="button" onClick={onEdit}>Редактировать</button></div>
+    <div className="workspace__head">
+      <div><p className="eyebrow">Заказ №{order.id}</p><h1>{order.objectLabel}</h1><p className="workspace__subtitle">{order.address}</p></div>
+      <button className="button button--compact" type="button" onClick={onEdit}>Редактировать</button>
+    </div>
+
+    <div className="order-control-bar">
+      <div><span>Статус заказа</span><select value={order.status||'draft'} onChange={e=>onStatusChange(e.target.value)}>{ORDER_STATUSES.map(item=><option key={item.id} value={item.id}>{item.label}</option>)}</select></div>
+      <div className="order-control-bar__actions"><button type="button" onClick={onDuplicate}>Дублировать</button><button className="danger-link" type="button" onClick={onDelete}>Удалить</button></div>
+    </div>
 
     <div className="order-detail-kpis">
       <div><span>Итого</span><strong>{money(order.total)} ₽</strong></div>
@@ -163,15 +199,17 @@ export default function App() {
   const [orders,setOrders]=useState(()=>readJSON(ORDERS_KEY,[]))
   const [selectedOrderId,setSelectedOrderId]=useState(null)
   const [editingOrderId,setEditingOrderId]=useState(null)
+  const [notice,setNotice]=useState(null)
 
   const authenticated=Boolean(profile)
+  const account=profile?{profile,clientType,contact,method}:null
 
   useEffect(()=>writeJSON(ORDERS_KEY,orders),[orders])
 
   const completeRegistration=value=>{
-    const account={profile:value,clientType,contact,method}
+    const nextAccount={profile:value,clientType,contact,method}
     setProfile(value)
-    writeJSON(ACCOUNT_KEY,account)
+    writeJSON(ACCOUNT_KEY,nextAccount)
     setScreen('success')
   }
 
@@ -188,11 +226,11 @@ export default function App() {
   const saveOrder=data=>{
     const now=new Date().toISOString()
     if(editingOrderId){
-      setOrders(current=>current.map(order=>order.id===editingOrderId?{...order,...data,id:order.id,updatedAt:now}:order))
+      setOrders(current=>current.map(order=>order.id===editingOrderId?{...order,...data,id:order.id,status:order.status||'calculated',updatedAt:now}:order))
       setSelectedOrderId(editingOrderId)
     } else {
       const id=nextId()
-      setOrders(current=>[{...data,id,status:'draft',createdAt:now,updatedAt:now},...current])
+      setOrders(current=>[{...data,id,status:'calculated',createdAt:now,updatedAt:now},...current])
       setSelectedOrderId(id)
     }
     setEditingOrderId(null)
@@ -202,6 +240,53 @@ export default function App() {
   const openOrder=id=>{setSelectedOrderId(id);setScreen('order-detail')}
   const editOrder=id=>{setEditingOrderId(id);setScreen('create-order')}
   const createOrder=()=>{setEditingOrderId(null);setScreen('create-order')}
+
+  const duplicateOrder=id=>{
+    const order=orders.find(item=>item.id===id)
+    if(!order) return
+    const copy=cloneOrder(order,nextId())
+    setOrders(current=>[copy,...current])
+    setNotice({type:'success',text:`Заказ №${id} продублирован как №${copy.id}`})
+    setScreen('orders')
+  }
+
+  const deleteOrder=id=>{
+    const order=orders.find(item=>item.id===id)
+    if(!order) return
+    if(!window.confirm(`Удалить заказ №${id}? Это действие нельзя отменить.`)) return
+    setOrders(current=>current.filter(item=>item.id!==id))
+    if(selectedOrderId===id) setSelectedOrderId(null)
+    setNotice({type:'success',text:`Заказ №${id} удалён`})
+    setScreen('orders')
+  }
+
+  const changeStatus=(id,status)=>{
+    const now=new Date().toISOString()
+    setOrders(current=>current.map(order=>order.id===id?{...order,status,updatedAt:now}:order))
+  }
+
+  const exportData=()=>{
+    downloadBackup(makeBackup({account,orders}))
+    setNotice({type:'success',text:'Резервная копия сформирована'})
+  }
+
+  const importData=async file=>{
+    try {
+      const data=await readBackupFile(file)
+      setOrders(data.orders)
+      writeJSON(ORDERS_KEY,data.orders)
+      if(data.account?.profile){
+        setProfile(data.account.profile)
+        setClientType(data.account.clientType||'')
+        setContact(data.account.contact||'')
+        setMethod(data.account.method||'phone')
+        writeJSON(ACCOUNT_KEY,data.account)
+      }
+      setNotice({type:'success',text:`Импортировано заказов: ${data.orders.length}`})
+    } catch (error) {
+      setNotice({type:'error',text:error instanceof Error?error.message:'Не удалось импортировать резервную копию'})
+    }
+  }
 
   const renderAuth=()=>{
     if(step===1) return <AuthStep method={method} setMethod={setMethod} contact={contact} setContact={setContact} onNext={()=>setStep(2)}/>
@@ -218,10 +303,10 @@ export default function App() {
     <main className={screen==='auth'||screen==='success'?'main':'main main--workspace'}>
       {screen==='auth'&&<section className="auth-card">{renderAuth()}</section>}
       {screen==='success'&&<section className="auth-card"><SuccessStep clientType={clientType} onOrders={()=>setScreen('orders')} onCreateOrder={createOrder}/></section>}
-      {screen==='orders'&&<OrdersDashboard orders={orders} onCreateOrder={createOrder} onOpenOrder={openOrder} onEditOrder={editOrder}/>}
+      {screen==='orders'&&<OrdersDashboard orders={orders} onCreateOrder={createOrder} onOpenOrder={openOrder} onEditOrder={editOrder} onDuplicate={duplicateOrder} onDelete={deleteOrder} onExport={exportData} onImport={importData} notice={notice}/>}
       {screen==='create-order'&&<CreateOrder initialOrder={editingOrder} onCancel={()=>setScreen('orders')} onSave={saveOrder}/>}
-      {screen==='order-detail'&&<OrderDetails order={selectedOrder} onBack={()=>setScreen('orders')} onEdit={()=>selectedOrder&&editOrder(selectedOrder.id)}/>}
+      {screen==='order-detail'&&<OrderDetails order={selectedOrder} onBack={()=>setScreen('orders')} onEdit={()=>selectedOrder&&editOrder(selectedOrder.id)} onStatusChange={status=>selectedOrder&&changeStatus(selectedOrder.id,status)} onDuplicate={()=>selectedOrder&&duplicateOrder(selectedOrder.id)} onDelete={()=>selectedOrder&&deleteOrder(selectedOrder.id)}/>}
     </main>
-    <footer className="footer"><span>© Bath Dream</span><span>{authenticated?'Клиентский кабинет · MVP':'Клиентский модуль · MVP'}</span></footer>
+    <footer className="footer"><span>© Bath Dream</span><span>{authenticated?'Клиентский кабинет · рабочая MVP':'Клиентский модуль · MVP'}</span></footer>
   </div>
 }
