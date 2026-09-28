@@ -2,6 +2,7 @@ import Database from 'better-sqlite3'
 import { mkdirSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { randomUUID } from 'node:crypto'
 
 const __dirname=dirname(fileURLToPath(import.meta.url))
 const DEFAULT_DB=join(__dirname,'bathdream.sqlite')
@@ -18,7 +19,7 @@ const schema=readFileSync(join(__dirname,'schema.sql'),'utf8')
 db.exec(schema)
 
 export const nowIso=()=>new Date().toISOString()
-export const uid=(prefix='id')=>`${prefix}_${crypto.randomUUID()}`
+export const uid=(prefix='id')=>`${prefix}_${randomUUID()}`
 
 export function parseJSON(value,fallback={}) {
   try { return JSON.parse(value) } catch { return fallback }
