@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import CreateOrder from './components/CreateOrder.jsx'
 import {
   CLIENT_TYPES, ORDER_STATUSES, PROFILE_FIELDS, cloneOrder, money,
-  statusLabel, validateProfileField,
+  statusLabel, validateOrder, validateProfileField,
 } from './domain/model.js'
 import { makeBackup, downloadBackup, readBackupFile } from './lib/backup.js'
 import { readJSON, removeKey, writeJSON } from './lib/storage.js'
@@ -224,6 +224,11 @@ export default function App() {
   }
 
   const saveOrder=data=>{
+    const validationErrors=validateOrder(data)
+    if(validationErrors.length){
+      window.alert(`Не удалось сохранить заказ:\n\n${validationErrors.join('\n')}`)
+      return
+    }
     const now=new Date().toISOString()
     if(editingOrderId){
       setOrders(current=>current.map(order=>order.id===editingOrderId?{...order,...data,id:order.id,status:order.status||'calculated',updatedAt:now}:order))
