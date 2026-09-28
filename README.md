@@ -1,4 +1,4 @@
-# Bath Dream — Client MVP v0.3
+# Bath Dream — Client MVP v0.4
 
 Рабочая модель клиентского контура Bath Dream с двумя режимами:
 
@@ -15,7 +15,7 @@
 - локальный OTP для разработки;
 - серверные OTP challenge и bearer-сессии;
 - профили ФЛ / ИП / Юрлица с серверной валидацией;
-- SQLite-таблицы AUTH_ACCOUNT / CLIENT_PROFILE / PROJECT / ORDER;
+- SQLite-таблицы AUTH_ACCOUNT / CLIENT_PROFILE / PROJECT / ORDER / PRICE_BOOK;
 - список заказов, редактирование, дублирование, удаление;
 - статусы заказа;
 - автосохранение незавершённого заказа;
@@ -94,6 +94,7 @@ npm run dev
 npm run test:smoke
 npm run test:api
 npm run test:otp
+npm run test:pricing
 npm run build
 ```
 
@@ -111,6 +112,21 @@ AUTH_ACCOUNT
 Подробная схема: `docs/ARCHITECTURE.md`.
 
 API: `docs/API.md`.
+
+## Версионированный прайс
+
+Активный прайс хранится в SQLite и отдаётся клиенту через `GET /api/pricing/active`. Новый заказ получает активную версию, а при сохранении в заказ записывается полный снимок расчётной конфигурации.
+
+Управление из консоли:
+
+```bash
+npm run pricing -- list
+npm run pricing -- clone "Москва · Демонтаж v2"
+npm run pricing -- set-rate <PRICE_BOOK_ID> DEM-FL-006 1750
+npm run pricing -- activate <PRICE_BOOK_ID>
+```
+
+Старые заказы продолжают использовать собственный снимок прайса.
 
 ## Production OTP
 
