@@ -157,3 +157,36 @@ export function respondOrderApproval(id,status,note='') {
     body:JSON.stringify({status,note}),
   })
 }
+
+
+export function loadOrderSchedule(orderNumber) {
+  return request(`/api/orders/${encodeURIComponent(orderNumber)}/schedule`)
+}
+
+export function initializeOrderSchedule(orderNumber,payload={}) {
+  return request(`/api/orders/${encodeURIComponent(orderNumber)}/schedule`,{
+    method:'POST',
+    body:JSON.stringify(payload),
+  })
+}
+
+export function updateRemoteWorkStage(id,payload) {
+  return request(`/api/work-stages/${encodeURIComponent(id)}`,{
+    method:'PATCH',
+    body:JSON.stringify(payload),
+  })
+}
+
+export function requestOrderAcceptance(orderNumber,note='') {
+  return request(`/api/orders/${encodeURIComponent(orderNumber)}/acceptance`,{
+    method:'POST',
+    body:JSON.stringify({note}),
+  })
+}
+
+export function respondOrderAcceptance(id,status,note='') {
+  return request(`/api/acceptance/${encodeURIComponent(id)}`,{
+    method:'PATCH',
+    body:JSON.stringify({status,note}),
+  })
+}
