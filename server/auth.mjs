@@ -123,8 +123,43 @@ export function revokeSession(sessionId) {
   db.prepare('UPDATE sessions SET revoked_at=? WHERE id=?').run(Date.now(),sessionId)
 }
 
+function requireText(profile,key,label) {
+  if(!String(profile?.[key]||'').trim()) throw Object.assign(new Error(`Поле «${label}» обязательно`),{status:400})
+}
+
+function requireDigits(profile,key,label,count) {
+  requireText(profile,key,label)
+  const digits=String(profile?.[key]||'').replace(/\D/g,'')
+  if(digits.length!==count) throw Object.assign(new Error(`Поле «${label}» должно содержать ${count} цифр`),{status:400})
+}
+
+function validateProfile(clientType,profile) {
+  if(clientType==='fl'){
+    requireText(profile,'firstName','Имя')
+    requireText(profile,'lastName','Фамилия')
+    requireText(profile,'city','Город')
+    return
+  }
+  if(clientType==='ip'){
+    requireText(profile,'ipName','ФИО / наименование ИП')
+    requireDigits(profile,'inn','ИНН',12)
+    requireDigits(profile,'ogrnip','ОГРНИП',15)
+    requireText(profile,'city','Город')
+    return
+  }
+  if(clientType==='ul'){
+    requireText(profile,'companyName','Наименование организации')
+    requireDigits(profile,'inn','ИНН',10)
+    requireDigits(profile,'kpp','КПП',9)
+    requireDigits(profile,'ogrn','ОГРН',13)
+    requireText(profile,'contactPerson','Контактное лицо')
+    requireText(profile,'city','Город')
+  }
+}
+
 export function upsertProfile(accountId,clientType,profile={}) {
   if(!['fl','ip','ul'].includes(clientType)) throw Object.assign(new Error('Некорректный тип клиента'),{status:400})
+  validateProfile(clientType,profile)
   const account=db.prepare('SELECT * FROM auth_accounts WHERE id=?').get(accountId)
   if(!account) throw Object.assign(new Error('Аккаунт не найден'),{status:404})
 
