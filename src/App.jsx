@@ -739,11 +739,13 @@ function WorkProgressPanel({order,onStatusChange}){
           {(stage.status==='in_progress'||stage.status==='blocked')&&<button type="button" disabled={busy===stage.id} onClick={()=>updateStage(stage,{status:'done'})}>Завершить</button>}
           {stage.status==='in_progress'&&<button className="stage-pause" type="button" disabled={busy===stage.id} onClick={()=>updateStage(stage,{status:'blocked'})}>Пауза</button>}
           {stage.status==='blocked'&&<button type="button" disabled={busy===stage.id} onClick={()=>updateStage(stage,{status:'in_progress'})}>Продолжить</button>}
-          {stage.status==='done'&&<span className="stage-done">✓ Готово</span>}
+          {stage.status==='done'&&acceptance?.status==='changes_requested'
+            ? <button type="button" disabled={busy===stage.id} onClick={()=>updateStage(stage,{status:'in_progress',progress:75})}>Возобновить</button>
+            : stage.status==='done'&&<span className="stage-done">✓ Готово</span>}
         </div>
       </article>)}</div>
 
-      {summary.canRequestAcceptance&&!acceptance&&<div className="acceptance-box">
+      {summary.canRequestAcceptance&&(!acceptance||acceptance.status==='changes_requested'||acceptance.status==='cancelled')&&<div className="acceptance-box">
         <div><strong>Все этапы завершены</strong><span>Зафиксируйте результат и перейдите к приёмке.</span></div>
         <label className="field"><span>Комментарий к приёмке</span><input value={acceptNote} onChange={e=>setAcceptNote(e.target.value)} placeholder="Например: объект готов к осмотру"/></label>
         <button className="button button--compact" type="button" disabled={busy==='acceptance'} onClick={requestAcceptance}>Передать на приёмку</button>
@@ -759,7 +761,7 @@ function WorkProgressPanel({order,onStatusChange}){
           </div>
         </>}
         {acceptance.status==='accepted'&&<span className="document-signed">✓ Работы приняты, заказ завершён</span>}
-        {acceptance.status==='changes_requested'&&<button className="button button--compact" type="button" onClick={()=>{const next={...data,acceptance:null};saveLocal(next);onStatusChange('work')}}>Вернуть в работу</button>}
+        {acceptance.status==='changes_requested'&&<span className="muted">Возобновите нужный этап, внесите исправления и после завершения отправьте результат на повторную приёмку.</span>}
       </div>}
     </>}
   </section>
