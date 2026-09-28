@@ -120,3 +120,22 @@ export function updateRemoteDocumentStatus(id,status) {
     body:JSON.stringify({status}),
   })
 }
+
+
+export function loadOrderPayments(orderNumber) {
+  return request(`/api/orders/${encodeURIComponent(orderNumber)}/payments`)
+}
+
+export function createOrderPayment(orderNumber,payload) {
+  return request(`/api/orders/${encodeURIComponent(orderNumber)}/payments`,{
+    method:'POST',
+    body:JSON.stringify(payload),
+  })
+}
+
+export function updateRemotePaymentStatus(id,status) {
+  return request(`/api/payments/${encodeURIComponent(id)}`,{
+    method:'PATCH',
+    body:JSON.stringify({status}),
+  })
+}
