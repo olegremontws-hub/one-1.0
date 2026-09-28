@@ -5,7 +5,9 @@ const OTP_TTL_MS=Number(process.env.OTP_TTL_MS||5*60*1000)
 const SESSION_TTL_MS=Number(process.env.SESSION_TTL_MS||30*24*60*60*1000)
 const OTP_SECRET=process.env.OTP_SECRET||'bath-dream-local-otp-secret'
 const SESSION_SECRET=process.env.SESSION_SECRET||'bath-dream-local-session-secret'
-const OTP_ECHO=String(process.env.OTP_ECHO||'')==='1'
+const OTP_ECHO=process.env.OTP_ECHO!==undefined
+  ? String(process.env.OTP_ECHO)==='1'
+  : process.env.NODE_ENV!=='production'
 
 const sha=value=>createHash('sha256').update(value).digest('hex')
 const otpHash=(challengeId,code)=>sha(`${OTP_SECRET}:${challengeId}:${code}`)
