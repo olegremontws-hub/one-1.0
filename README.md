@@ -56,6 +56,21 @@ npm run server
 
 API запускается на `http://localhost:8787`. Контракт описан в `docs/API.md`.
 
+Чтобы клиент автоматически синхронизировал профиль и заказы с API:
+
+```bash
+cp .env.example .env
+```
+
+Затем в двух терминалах:
+
+```bash
+npm run server
+npm run dev
+```
+
+Без `VITE_API_URL` приложение автоматически остаётся в автономном режиме на `localStorage`.
+
 ## Локальный запуск
 
 ```bash
