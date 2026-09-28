@@ -198,6 +198,41 @@ CREATE TABLE IF NOT EXISTS approval_requests (
 CREATE INDEX IF NOT EXISTS idx_approval_requests_order
 ON approval_requests(order_id, created_at DESC);
 
+
+CREATE TABLE IF NOT EXISTS work_stages (
+  id TEXT PRIMARY KEY,
+  order_id TEXT NOT NULL,
+  sequence INTEGER NOT NULL,
+  title TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'planned' CHECK (status IN ('planned','in_progress','done','blocked')),
+  progress INTEGER NOT NULL DEFAULT 0 CHECK (progress BETWEEN 0 AND 100),
+  planned_start TEXT,
+  planned_end TEXT,
+  actual_start TEXT,
+  actual_end TEXT,
+  note TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
+  UNIQUE(order_id, sequence)
+);
+
+CREATE INDEX IF NOT EXISTS idx_work_stages_order
+ON work_stages(order_id, sequence);
+
+CREATE TABLE IF NOT EXISTS acceptance_records (
+  id TEXT PRIMARY KEY,
+  order_id TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','accepted','changes_requested','cancelled')),
+  note TEXT,
+  created_at TEXT NOT NULL,
+  responded_at TEXT,
+  FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_acceptance_order
+ON acceptance_records(order_id, created_at DESC);
+
 INSERT INTO schema_meta(key,value)
-VALUES ('schema_version','5')
+VALUES ('schema_version','6')
 ON CONFLICT(key) DO UPDATE SET value=excluded.value;
