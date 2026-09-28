@@ -131,7 +131,7 @@ function OrdersDashboard({orders,onCreateOrder,onOpenOrder,onEditOrder,onDuplica
     </div>
 
     <div className="data-toolbar">
-      <div><strong>Данные MVP</strong><span>{storageMode==='online'?'API подключён · серверное хранилище':storageMode==='connecting'?'Подключение к API…':storageMode==='error'?'API недоступен · локальный режим':'Локальное хранилище браузера'}</span></div>
+      <div><strong>Данные MVP</strong><span>{storageMode==='online'?'API подключён · серверное хранилище':storageMode==='connecting'?'Подключение к API…':storageMode==='error'?'API недоступен · локальный режим':storageMode==='api'?'API настроен · войдите для синхронизации':'Локальное хранилище браузера'}</span></div>
       <div className="data-toolbar__actions">
         <button type="button" onClick={onExport}>Экспорт JSON</button>
         <button type="button" onClick={()=>inputRef.current?.click()}>Импорт JSON</button>
