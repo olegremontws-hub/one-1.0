@@ -53,7 +53,7 @@ const server=http.createServer(async (req,res)=>{
 
     if(url.pathname==='/api/auth/otp/request'&&req.method==='POST'){
       const payload=await body(req)
-      return json(res,200,requestOtp(payload.method,payload.contact))
+      return json(res,200,await requestOtp(payload.method,payload.contact))
     }
 
     if(url.pathname==='/api/auth/otp/verify'&&req.method==='POST'){
