@@ -92,3 +92,8 @@ export async function logoutRemote() {
 export function checkRemoteHealth() {
   return request('/api/health',{auth:false})
 }
+
+
+export function loadActivePricing() {
+  return request('/api/pricing/active',{auth:false})
+}
