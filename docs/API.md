@@ -1,4 +1,4 @@
-# Bath Dream API v4
+# Bath Dream API v5
 
 Серверный MVP клиентского контура. Runtime: **Node.js 22.14+**, хранилище: **SQLite**.
 
@@ -67,6 +67,16 @@ VITE_API_URL=http://localhost:8787
 `GET /api/me` — текущий аккаунт.
 
 `POST /api/logout` — отозвать текущую сессию.
+
+## Оплаты
+
+Все методы требуют bearer-сессию.
+
+- `GET /api/orders/:number/payments` — список платежей и агрегаты по заказу.
+- `POST /api/orders/:number/payments` — добавить запланированный платёж.
+- `PATCH /api/payments/:id` — перевести платёж в `paid` или `cancelled`.
+
+Сервер считает `paid`, `planned`, `remaining` и `unplanned` от текущей суммы заказа и не допускает распределение выше остатка.
 
 ## Документы
 
