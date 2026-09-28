@@ -153,6 +153,51 @@ CREATE TABLE IF NOT EXISTS payments (
 CREATE INDEX IF NOT EXISTS idx_payments_order
 ON payments(order_id, created_at DESC);
 
+
+CREATE TABLE IF NOT EXISTS order_revisions (
+  id TEXT PRIMARY KEY,
+  order_id TEXT NOT NULL,
+  version INTEGER NOT NULL,
+  snapshot_json TEXT NOT NULL,
+  change_json TEXT NOT NULL DEFAULT '{}',
+  created_at TEXT NOT NULL,
+  FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
+  UNIQUE(order_id, version)
+);
+
+CREATE INDEX IF NOT EXISTS idx_order_revisions_order
+ON order_revisions(order_id, version DESC);
+
+CREATE TABLE IF NOT EXISTS audit_events (
+  id TEXT PRIMARY KEY,
+  order_id TEXT NOT NULL,
+  actor_account_id TEXT,
+  actor_role TEXT NOT NULL DEFAULT 'client',
+  event_type TEXT NOT NULL,
+  data_json TEXT NOT NULL DEFAULT '{}',
+  created_at TEXT NOT NULL,
+  FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
+  FOREIGN KEY (actor_account_id) REFERENCES auth_accounts(id) ON DELETE SET NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_audit_events_order
+ON audit_events(order_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS approval_requests (
+  id TEXT PRIMARY KEY,
+  order_id TEXT NOT NULL,
+  revision_version INTEGER NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','approved','rejected','cancelled')),
+  snapshot_json TEXT NOT NULL,
+  note TEXT,
+  created_at TEXT NOT NULL,
+  responded_at TEXT,
+  FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_approval_requests_order
+ON approval_requests(order_id, created_at DESC);
+
 INSERT INTO schema_meta(key,value)
-VALUES ('schema_version','4')
+VALUES ('schema_version','5')
 ON CONFLICT(key) DO UPDATE SET value=excluded.value;
