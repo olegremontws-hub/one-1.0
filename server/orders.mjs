@@ -1,4 +1,5 @@
 import { db, nowIso, parseJSON, transaction, uid } from './db.mjs'
+import { recordOrderRevision } from './audit.mjs'
 
 function clientForAccount(accountId) {
   const client=db.prepare('SELECT * FROM client_profiles WHERE account_id=?').get(accountId)
@@ -103,7 +104,9 @@ export function getOrder(accountId,number) {
 
 export function createOrder(accountId,order) {
   const client=clientForAccount(accountId)
-  return transaction(()=>saveOne(client.id,{...order,id:chooseNumber(client.id,order?.id)}))()
+  const saved=transaction(()=>saveOne(client.id,{...order,id:chooseNumber(client.id,order?.id)}))()
+  recordOrderRevision(accountId,saved.id,'order.created')
+  return saved
 }
 
 export function updateOrder(accountId,number,patch) {
@@ -111,7 +114,9 @@ export function updateOrder(accountId,number,patch) {
   const current=rowByNumber(client.id,normalizeNumber(number))
   if(!current) throw Object.assign(new Error('Заказ не найден'),{status:404})
   const merged={...serializeOrder(current),...patch,id:String(current.public_number)}
-  return transaction(()=>saveOne(client.id,merged))()
+  const saved=transaction(()=>saveOne(client.id,merged))()
+  recordOrderRevision(accountId,saved.id,'order.updated')
+  return saved
 }
 
 export function deleteOrder(accountId,number) {
@@ -128,9 +133,9 @@ export function deleteOrder(accountId,number) {
 export function syncOrders(accountId,incoming=[]) {
   const client=clientForAccount(accountId)
   const orders=Array.isArray(incoming)?incoming:[]
-  return transaction(()=>{
-    const saved=orders.map(order=>saveOne(client.id,order))
-    const keep=new Set(saved.map(order=>Number(order.id)))
+  const saved=transaction(()=>{
+    const next=orders.map(order=>saveOne(client.id,order))
+    const keep=new Set(next.map(order=>Number(order.id)))
     const existing=db.prepare(`SELECT o.public_number,p.id AS project_id
                                FROM orders o JOIN projects p ON p.id=o.project_id
                                WHERE p.client_id=?`).all(client.id)
@@ -139,4 +144,6 @@ export function syncOrders(accountId,incoming=[]) {
     })
     return db.prepare(baseSelect+' WHERE p.client_id=? ORDER BY o.updated_at DESC').all(client.id).map(serializeOrder)
   })()
+  saved.forEach(order=>recordOrderRevision(accountId,order.id,'order.updated'))
+  return saved
 }
