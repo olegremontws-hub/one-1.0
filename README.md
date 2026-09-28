@@ -93,6 +93,7 @@ npm run dev
 ```bash
 npm run test:smoke
 npm run test:api
+npm run test:otp
 npm run build
 ```
 
