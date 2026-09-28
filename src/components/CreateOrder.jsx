@@ -6,6 +6,17 @@ import {
 } from '../domain/model.js'
 import { readJSON, removeKey, writeJSON } from '../lib/storage.js'
 
+const LOCAL_PRICING={
+  id:'local-v1',
+  code:'LOCAL-DEMO',
+  version:1,
+  title:'Локальная модель v1',
+  currency:'RUB',
+  rates:DEMO_RATES,
+  wasteRules:WASTE_RULES,
+  logisticsRates:LOGISTICS_RATES,
+}
+
 function StepMeta({current,total=4,label='Новый заказ'}) {
   return <div className="step-meta"><span>{label}: шаг {current} из {total}</span><div className="step-meta__track"><span style={{width:`${(current/total)*100}%`}} /></div></div>
 }
@@ -230,14 +241,12 @@ function EstimateStep({rooms,selections,initialRates,floor,lift,onBack,onSave,pr
       workTotal,
       logistics,
       total:grandTotal,
-      priceBook:pricingConfig?{
-        id:pricingConfig.id,code:pricingConfig.code,version:pricingConfig.version,
-        title:pricingConfig.title,currency:pricingConfig.currency,
-      }:{id:'local-v1',code:'LOCAL-DEMO',version:1,title:'Локальная модель v1',currency:'RUB'},
-      pricingSnapshot:pricingConfig||{
-        id:'local-v1',code:'LOCAL-DEMO',version:1,title:'Локальная модель v1',currency:'RUB',
-        rates:DEMO_RATES,wasteRules:WASTE_RULES,logisticsRates:LOGISTICS_RATES,
+      priceBook:{
+        id:(pricingConfig||LOCAL_PRICING).id,code:(pricingConfig||LOCAL_PRICING).code,
+        version:(pricingConfig||LOCAL_PRICING).version,title:(pricingConfig||LOCAL_PRICING).title,
+        currency:(pricingConfig||LOCAL_PRICING).currency,
       },
+      pricingSnapshot:pricingConfig||LOCAL_PRICING,
     })}>Сохранить заказ</button></div>
   </section>
 }
@@ -247,7 +256,7 @@ export default function CreateOrder({initialOrder,onCancel,onSave,pricing}) {
   const draftKey=isEditing?`bathdream.draft.${initialOrder.id}`:'bathdream.draft.new'
   const savedDraft=useMemo(()=>isEditing?null:readJSON(draftKey,null),[draftKey,isEditing])
   const source=initialOrder||savedDraft||{}
-  const pricingConfig=source.pricingSnapshot||pricing||null
+  const pricingConfig=source.pricingSnapshot||(isEditing?LOCAL_PRICING:(pricing||null))
 
   const [orderStep,setOrderStep]=useState(source.orderStep|| (isEditing?4:1))
   const [objectType,setObjectType]=useState(source.objectType||'')
