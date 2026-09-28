@@ -1,122 +1,136 @@
 import http from 'node:http'
-import { readFile, writeFile } from 'node:fs/promises'
-import { dirname, join } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import './db.mjs'
+import {
+  authenticate, getAccountShape, requestOtp, revokeSession, upsertProfile, verifyOtp,
+} from './auth.mjs'
+import {
+  createOrder, deleteOrder, getOrder, listOrders, syncOrders, updateOrder,
+} from './orders.mjs'
 
-const __dirname=dirname(fileURLToPath(import.meta.url))
-const DATA_FILE=join(__dirname,'data.json')
 const PORT=Number(process.env.PORT||8787)
-
-const emptyState=()=>({
-  version:1,
-  account:null,
-  orders:[],
-  updatedAt:new Date().toISOString(),
-})
-
-async function readState() {
-  try {
-    return JSON.parse(await readFile(DATA_FILE,'utf8'))
-  } catch {
-    const state=emptyState()
-    await writeState(state)
-    return state
-  }
-}
-
-async function writeState(state) {
-  const next={...state,version:1,updatedAt:new Date().toISOString()}
-  await writeFile(DATA_FILE,JSON.stringify(next,null,2),'utf8')
-  return next
-}
+const MAX_BODY=2*1024*1024
 
 function json(res,status,data) {
   res.writeHead(status,{
     'content-type':'application/json; charset=utf-8',
     'access-control-allow-origin':'*',
     'access-control-allow-methods':'GET,POST,PUT,PATCH,DELETE,OPTIONS',
-    'access-control-allow-headers':'content-type',
+    'access-control-allow-headers':'content-type,authorization',
+    'cache-control':'no-store',
   })
+  if(status===204) return res.end()
   res.end(JSON.stringify(data))
 }
 
 async function body(req) {
   const chunks=[]
-  for await (const chunk of req) chunks.push(chunk)
+  let size=0
+  for await (const chunk of req){
+    size+=chunk.length
+    if(size>MAX_BODY) throw Object.assign(new Error('Слишком большой запрос'),{status:413})
+    chunks.push(chunk)
+  }
   if(!chunks.length) return {}
-  return JSON.parse(Buffer.concat(chunks).toString('utf8'))
+  try {
+    return JSON.parse(Buffer.concat(chunks).toString('utf8'))
+  } catch {
+    throw Object.assign(new Error('Некорректный JSON'),{status:400})
+  }
+}
+
+function requireAuth(req) {
+  return authenticate(req)
 }
 
 const server=http.createServer(async (req,res)=>{
   try {
-    if(req.method==='OPTIONS') return json(res,204,{})
+    if(req.method==='OPTIONS') return json(res,204)
     const url=new URL(req.url,'http://localhost')
 
-    if(url.pathname==='/api/health'&&req.method==='GET') {
-      return json(res,200,{ok:true,service:'bath-dream-api',version:1})
+    if(url.pathname==='/api/health'&&req.method==='GET'){
+      return json(res,200,{ok:true,service:'bath-dream-api',version:2,storage:'sqlite'})
     }
 
-    if(url.pathname==='/api/state'&&req.method==='GET') {
-      return json(res,200,await readState())
-    }
-
-    if(url.pathname==='/api/state'&&req.method==='PUT') {
+    if(url.pathname==='/api/auth/otp/request'&&req.method==='POST'){
       const payload=await body(req)
-      return json(res,200,await writeState({
-        version:1,
-        account:payload.account||null,
-        orders:Array.isArray(payload.orders)?payload.orders:[],
-      }))
+      return json(res,200,requestOtp(payload.method,payload.contact))
     }
 
-    if(url.pathname==='/api/orders'&&req.method==='GET') {
-      const state=await readState()
-      return json(res,200,state.orders)
+    if(url.pathname==='/api/auth/otp/verify'&&req.method==='POST'){
+      const payload=await body(req)
+      return json(res,200,verifyOtp(payload.requestId,payload.code))
     }
 
-    if(url.pathname==='/api/orders'&&req.method==='POST') {
-      const order=await body(req)
-      const state=await readState()
-      if(!order?.id) return json(res,400,{error:'order.id is required'})
-      if(state.orders.some(item=>String(item.id)===String(order.id))) return json(res,409,{error:'order already exists'})
-      state.orders=[order,...state.orders]
-      await writeState(state)
-      return json(res,201,order)
+    if(url.pathname==='/api/me'&&req.method==='GET'){
+      const auth=requireAuth(req)
+      return json(res,200,getAccountShape(auth.accountId))
+    }
+
+    if(url.pathname==='/api/logout'&&req.method==='POST'){
+      const auth=requireAuth(req)
+      revokeSession(auth.sessionId)
+      return json(res,204)
+    }
+
+    if(url.pathname==='/api/profile'&&req.method==='PUT'){
+      const auth=requireAuth(req)
+      const payload=await body(req)
+      return json(res,200,upsertProfile(auth.accountId,payload.clientType,payload.profile||{}))
+    }
+
+    if(url.pathname==='/api/state'&&req.method==='GET'){
+      const auth=requireAuth(req)
+      return json(res,200,{
+        version:2,
+        account:getAccountShape(auth.accountId),
+        orders:listOrders(auth.accountId),
+        updatedAt:new Date().toISOString(),
+      })
+    }
+
+    if(url.pathname==='/api/state'&&req.method==='PUT'){
+      const auth=requireAuth(req)
+      const payload=await body(req)
+      if(payload.account?.profile&&payload.account?.clientType){
+        upsertProfile(auth.accountId,payload.account.clientType,payload.account.profile)
+      }
+      const orders=syncOrders(auth.accountId,payload.orders||[])
+      return json(res,200,{
+        version:2,
+        account:getAccountShape(auth.accountId),
+        orders,
+        updatedAt:new Date().toISOString(),
+      })
+    }
+
+    if(url.pathname==='/api/orders'&&req.method==='GET'){
+      const auth=requireAuth(req)
+      return json(res,200,listOrders(auth.accountId))
+    }
+
+    if(url.pathname==='/api/orders'&&req.method==='POST'){
+      const auth=requireAuth(req)
+      return json(res,201,createOrder(auth.accountId,await body(req)))
     }
 
     const match=url.pathname.match(/^\/api\/orders\/([^/]+)$/)
-    if(match) {
-      const id=decodeURIComponent(match[1])
-      const state=await readState()
-      const index=state.orders.findIndex(item=>String(item.id)===id)
+    if(match){
+      const auth=requireAuth(req)
+      const number=decodeURIComponent(match[1])
 
-      if(req.method==='GET') {
-        if(index<0) return json(res,404,{error:'order not found'})
-        return json(res,200,state.orders[index])
-      }
-
-      if(req.method==='PUT') {
-        if(index<0) return json(res,404,{error:'order not found'})
-        const order=await body(req)
-        state.orders[index]={...state.orders[index],...order,id:state.orders[index].id}
-        await writeState(state)
-        return json(res,200,state.orders[index])
-      }
-
-      if(req.method==='DELETE') {
-        if(index<0) return json(res,404,{error:'order not found'})
-        const [removed]=state.orders.splice(index,1)
-        await writeState(state)
-        return json(res,200,removed)
-      }
+      if(req.method==='GET') return json(res,200,getOrder(auth.accountId,number))
+      if(req.method==='PUT') return json(res,200,updateOrder(auth.accountId,number,await body(req)))
+      if(req.method==='DELETE') return json(res,200,deleteOrder(auth.accountId,number))
     }
 
-    return json(res,404,{error:'not found'})
+    return json(res,404,{error:'Маршрут не найден'})
   } catch (error) {
-    return json(res,500,{error:error instanceof Error?error.message:'internal error'})
+    const status=Number(error?.status)||500
+    if(status>=500) console.error(error)
+    return json(res,status,{error:error instanceof Error?error.message:'Внутренняя ошибка'})
   }
 })
 
 server.listen(PORT,()=>{
-  console.log(`Bath Dream API: http://localhost:${PORT}`)
+  console.log(`Bath Dream API v2: http://localhost:${PORT}`)
 })
