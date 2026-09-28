@@ -5,7 +5,7 @@ import {
   statusLabel, validateOrder, validateProfileField,
 } from './domain/model.js'
 import { makeBackup, downloadBackup, readBackupFile } from './lib/backup.js'
-import { REMOTE_ENABLED, loadRemoteState, saveRemoteState } from './lib/remote.js'
+import {\n  REMOTE_ENABLED, hasRemoteSession, loadRemoteState, logoutRemote, requestRemoteOtp,\n  saveRemoteProfile, saveRemoteState, verifyRemoteOtp,\n} from './lib/remote.js'
 import { readJSON, removeKey, writeJSON } from './lib/storage.js'
 
 const ACCOUNT_KEY='bathdream.account'
@@ -43,7 +43,7 @@ function Tabs({value,onChange}) {
   </div>
 }
 
-function AuthStep({method,setMethod,contact,setContact,onNext}) {
+function AuthStep({method,setMethod,contact,setContact,onNext,busy,error}) {
   const isPhone=method==='phone'
   const valid=isPhone?contact.replace(/\D/g,'').length>=11:/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact)
   return <>
@@ -51,12 +51,13 @@ function AuthStep({method,setMethod,contact,setContact,onNext}) {
     <div className="page-heading"><p className="eyebrow">Клиент Bath Dream</p><h1>Создайте аккаунт</h1><p>Сохраняйте расчёты, создавайте заказы и возвращайтесь к ним с этого устройства.</p></div>
     <Tabs value={method} onChange={next=>{setMethod(next);setContact('')}}/>
     <label className="field"><span>{isPhone?'Номер телефона':'Электронная почта'}</span><input autoFocus inputMode={isPhone?'tel':'email'} placeholder={isPhone?'+7 999 123-45-67':'name@example.ru'} value={contact} onChange={e=>setContact(e.target.value)}/></label>
-    <PrimaryButton disabled={!valid} onClick={onNext}>{isPhone?'Получить код':'Продолжить'}</PrimaryButton>
+    {error&&<div className="notice notice--error">{error}</div>}
+    <PrimaryButton disabled={!valid||busy} onClick={onNext}>{busy?'Отправляем…':isPhone?'Получить код':'Продолжить'}</PrimaryButton>
     <p className="legal">Продолжая, вы соглашаетесь с <a href="#">Лицензионным соглашением</a> и <a href="#">Положением о защите персональных данных</a>.</p>
   </>
 }
 
-function VerifyStep({contact,method,onBack,onNext}) {
+function VerifyStep({contact,method,onBack,onNext,onResend,busy,error,devCode}) {
   const [digits,setDigits]=useState(['','','',''])
   const refs=[useRef(null),useRef(null),useRef(null),useRef(null)]
   const setDigit=(index,value)=>{
@@ -69,9 +70,11 @@ function VerifyStep({contact,method,onBack,onNext}) {
     <button className="back-link" type="button" onClick={onBack}>← Назад</button>
     <div className="page-heading"><p className="eyebrow">Подтверждение</p><h1>Введите полученный код</h1><p>{method==='phone'?'Мы отправили SMS на ':'Мы отправили письмо на '}<strong>{contact}</strong></p></div>
     <div className="otp">{digits.map((digit,index)=><input key={index} ref={refs[index]} value={digit} inputMode="numeric" maxLength={1} onChange={e=>setDigit(index,e.target.value)} onKeyDown={e=>{if(e.key==='Backspace'&&!digits[index]&&index>0) refs[index-1].current?.focus()}} aria-label={`Цифра ${index+1}`}/>)}</div>
-    <div className="inline-row"><span className="muted">Не получили код?</span><button className="link-button" type="button">Запросить повторно</button></div>
-    <PrimaryButton disabled={!digits.every(Boolean)} onClick={onNext}>Подтвердить</PrimaryButton>
-    <p className="hint">В демо-версии подходит любой четырёхзначный код.</p>
+    <div className="inline-row"><span className="muted">Не получили код?</span><button className="link-button" type="button" disabled={busy} onClick={onResend}>Запросить повторно</button></div>
+    {devCode&&<p className="dev-code">Код локального OTP: <strong>{devCode}</strong></p>}
+    {error&&<div className="notice notice--error">{error}</div>}
+    <PrimaryButton disabled={!digits.every(Boolean)||busy} onClick={()=>onNext(digits.join(''))}>{busy?'Проверяем…':'Подтвердить'}</PrimaryButton>
+    {!REMOTE_ENABLED&&<p className="hint">В автономном режиме подходит любой четырёхзначный код.</p>
   </>
 }
 
@@ -85,7 +88,7 @@ function ClientTypeStep({value,onChange,onBack,onNext}) {
   </>
 }
 
-function ProfileStep({type,contact,method,onBack,onNext}) {
+function ProfileStep({type,contact,method,onBack,onNext,busy,error}) {
   const fields=PROFILE_FIELDS[type]||[]
   const initial=useMemo(()=>Object.fromEntries(fields.map(field=>[field.key,field.key==='city'?'Москва':''])),[type])
   const [values,setValues]=useState(initial)
@@ -100,7 +103,8 @@ function ProfileStep({type,contact,method,onBack,onNext}) {
       {fields.map(field=><label className="field" key={field.key}><span>{field.label}</span><input placeholder={field.placeholder} value={values[field.key]||''} onChange={e=>setValues(current=>({...current,[field.key]:e.target.value}))}/>{values[field.key]&&errors[field.key]&&<small className="field-error">{errors[field.key]}</small>}</label>)}
       <label className="field field--readonly"><span>{method==='phone'?'Подтверждённый телефон':'Подтверждённая почта'}</span><input value={contact} readOnly/></label>
     </div>
-    <PrimaryButton disabled={!valid} onClick={()=>onNext(values)}>Создать аккаунт</PrimaryButton>
+    {error&&<div className="notice notice--error">{error}</div>}
+    <PrimaryButton disabled={!valid||busy} onClick={()=>onNext(values)}>{busy?'Сохраняем…':'Создать аккаунт'}</PrimaryButton>
   </>
 }
 
@@ -206,7 +210,8 @@ function OrderDetails({order,onBack,onEdit,onStatusChange,onDuplicate,onDelete})
 }
 
 export default function App() {
-  const storedAccount=useMemo(()=>readJSON(ACCOUNT_KEY,null),[])
+  const initialRemoteSession=useMemo(()=>REMOTE_ENABLED&&hasRemoteSession(),[])
+  const storedAccount=useMemo(()=>REMOTE_ENABLED&&!initialRemoteSession?null:readJSON(ACCOUNT_KEY,null),[initialRemoteSession])
   const [screen,setScreen]=useState(storedAccount?'orders':'auth')
   const [step,setStep]=useState(1)
   const [method,setMethod]=useState(storedAccount?.method||'phone')
@@ -217,7 +222,11 @@ export default function App() {
   const [selectedOrderId,setSelectedOrderId]=useState(null)
   const [editingOrderId,setEditingOrderId]=useState(null)
   const [notice,setNotice]=useState(null)
-  const [remoteStatus,setRemoteStatus]=useState(REMOTE_ENABLED?'connecting':'local')
+  const [authBusy,setAuthBusy]=useState(false)
+  const [authError,setAuthError]=useState('')
+  const [otpRequestId,setOtpRequestId]=useState('')
+  const [otpDevCode,setOtpDevCode]=useState('')
+  const [remoteStatus,setRemoteStatus]=useState(REMOTE_ENABLED?(initialRemoteSession?'connecting':'api'):'local')
   const [remoteReady,setRemoteReady]=useState(!REMOTE_ENABLED)
 
   const authenticated=Boolean(profile)
@@ -227,39 +236,47 @@ export default function App() {
 
   useEffect(()=>{
     if(!REMOTE_ENABLED) return
-    let cancelled=false
+    if(!hasRemoteSession()){
+      setRemoteStatus('api')
+      setRemoteReady(false)
+      return
+    }
 
+    let cancelled=false
     ;(async()=>{
       try {
         const remote=await loadRemoteState()
         if(cancelled) return
+        const nextOrders=Array.isArray(remote.orders)?remote.orders:[]
+        setOrders(nextOrders)
+        writeJSON(ORDERS_KEY,nextOrders)
 
-        const remoteHasData=Boolean(remote?.account?.profile)||(Array.isArray(remote?.orders)&&remote.orders.length>0)
-        if(remoteHasData){
-          const nextOrders=Array.isArray(remote.orders)?remote.orders:[]
-          setOrders(nextOrders)
-          writeJSON(ORDERS_KEY,nextOrders)
-
-          if(remote.account?.profile){
-            setProfile(remote.account.profile)
-            setClientType(remote.account.clientType||'')
-            setContact(remote.account.contact||'')
-            setMethod(remote.account.method||'phone')
-            writeJSON(ACCOUNT_KEY,remote.account)
-            setScreen('orders')
-          }
+        if(remote.account?.profile){
+          setProfile(remote.account.profile)
+          setClientType(remote.account.clientType||'')
+          setContact(remote.account.contact||'')
+          setMethod(remote.account.method||'phone')
+          writeJSON(ACCOUNT_KEY,remote.account)
+          setScreen('orders')
+          setRemoteReady(true)
         } else {
-          await saveRemoteState({account,orders})
+          setProfile(null)
+          setContact(remote.account?.contact||'')
+          setMethod(remote.account?.method||'phone')
+          setStep(3)
+          setScreen('auth')
+          setRemoteReady(false)
         }
-
+        setRemoteStatus('online')
+      } catch (error) {
         if(!cancelled){
-          setRemoteStatus('online')
-          setRemoteReady(true)
-        }
-      } catch {
-        if(!cancelled){
-          setRemoteStatus('error')
-          setRemoteReady(true)
+          setRemoteStatus(error?.status===401?'api':'error')
+          setRemoteReady(false)
+          if(error?.status===401){
+            setProfile(null)
+            removeKey(ACCOUNT_KEY)
+            setScreen('auth')
+          }
         }
       }
     })()
@@ -268,26 +285,122 @@ export default function App() {
   },[])
 
   useEffect(()=>{
-    if(!REMOTE_ENABLED||!remoteReady) return
+    if(!REMOTE_ENABLED||!remoteReady||!account) return
     const timer=setTimeout(()=>{
       setRemoteStatus('connecting')
       saveRemoteState({account,orders})
         .then(()=>setRemoteStatus('online'))
-        .catch(()=>setRemoteStatus('error'))
-    },300)
+        .catch(error=>{
+          setRemoteStatus(error?.status===401?'api':'error')
+          if(error?.status===401) setRemoteReady(false)
+        })
+    },350)
     return ()=>clearTimeout(timer)
   },[account,orders,remoteReady])
 
-  const completeRegistration=value=>{
-    const nextAccount={profile:value,clientType,contact,method}
-    setProfile(value)
-    writeJSON(ACCOUNT_KEY,nextAccount)
-    setScreen('success')
+  const beginAuth=async()=>{
+    setAuthError('')
+    if(!REMOTE_ENABLED){
+      setStep(2)
+      return
+    }
+    setAuthBusy(true)
+    try {
+      const challenge=await requestRemoteOtp(method,contact)
+      setOtpRequestId(challenge.requestId)
+      setOtpDevCode(challenge.devCode||'')
+      setStep(2)
+      setRemoteStatus('online')
+    } catch (error) {
+      setAuthError(error instanceof Error?error.message:'Не удалось отправить код')
+    } finally {
+      setAuthBusy(false)
+    }
+  }
+
+  const verifyAuth=async code=>{
+    setAuthError('')
+    if(!REMOTE_ENABLED){
+      setStep(3)
+      return
+    }
+    if(!otpRequestId){
+      setAuthError('Запросите новый код подтверждения')
+      return
+    }
+    setAuthBusy(true)
+    try {
+      const verified=await verifyRemoteOtp(otpRequestId,code)
+      setContact(verified.account.contact||contact)
+      setMethod(verified.account.method||method)
+      setClientType(verified.account.clientType||'')
+      setOtpDevCode('')
+      setRemoteStatus('online')
+
+      if(verified.account.profile){
+        const remote=await loadRemoteState()
+        const nextOrders=Array.isArray(remote.orders)?remote.orders:[]
+        setProfile(remote.account.profile)
+        setClientType(remote.account.clientType||'')
+        setOrders(nextOrders)
+        writeJSON(ACCOUNT_KEY,remote.account)
+        writeJSON(ORDERS_KEY,nextOrders)
+        setRemoteReady(true)
+        setScreen('orders')
+      } else {
+        setProfile(null)
+        setOrders([])
+        writeJSON(ORDERS_KEY,[])
+        setRemoteReady(false)
+        setStep(3)
+      }
+    } catch (error) {
+      setAuthError(error instanceof Error?error.message:'Не удалось подтвердить код')
+    } finally {
+      setAuthBusy(false)
+    }
+  }
+
+  const completeRegistration=async value=>{
+    setAuthError('')
+    if(!REMOTE_ENABLED){
+      const nextAccount={profile:value,clientType,contact,method}
+      setProfile(value)
+      writeJSON(ACCOUNT_KEY,nextAccount)
+      setScreen('success')
+      return
+    }
+
+    setAuthBusy(true)
+    try {
+      const nextAccount=await saveRemoteProfile(clientType,value)
+      const remote=await loadRemoteState()
+      const nextOrders=Array.isArray(remote.orders)?remote.orders:[]
+      setProfile(nextAccount.profile)
+      setClientType(nextAccount.clientType||clientType)
+      setContact(nextAccount.contact||contact)
+      setMethod(nextAccount.method||method)
+      setOrders(nextOrders)
+      writeJSON(ACCOUNT_KEY,nextAccount)
+      writeJSON(ORDERS_KEY,nextOrders)
+      setRemoteReady(true)
+      setRemoteStatus('online')
+      setScreen('success')
+    } catch (error) {
+      setAuthError(error instanceof Error?error.message:'Не удалось сохранить профиль')
+    } finally {
+      setAuthBusy(false)
+    }
   }
 
   const logout=()=>{
+    setRemoteReady(false)
+    if(REMOTE_ENABLED) logoutRemote().catch(()=>{})
     removeKey(ACCOUNT_KEY)
-    setProfile(null);setClientType('');setContact('');setMethod('phone');setStep(1);setScreen('auth')
+    if(REMOTE_ENABLED) removeKey(ORDERS_KEY)
+    setProfile(null);setClientType('');setContact('');setMethod('phone');setOrders([]);setStep(1);setScreen('auth')
+    setOtpRequestId('');setOtpDevCode('');setAuthError('')
+    setRemoteStatus(REMOTE_ENABLED?'api':'local')
   }
 
   const nextId=()=>{
@@ -366,10 +479,10 @@ export default function App() {
   }
 
   const renderAuth=()=>{
-    if(step===1) return <AuthStep method={method} setMethod={setMethod} contact={contact} setContact={setContact} onNext={()=>setStep(2)}/>
-    if(step===2) return <VerifyStep contact={contact} method={method} onBack={()=>setStep(1)} onNext={()=>setStep(3)}/>
-    if(step===3) return <ClientTypeStep value={clientType} onChange={setClientType} onBack={()=>setStep(2)} onNext={()=>setStep(4)}/>
-    return <ProfileStep type={clientType} contact={contact} method={method} onBack={()=>setStep(3)} onNext={completeRegistration}/>
+    if(step===1) return <AuthStep method={method} setMethod={setMethod} contact={contact} setContact={setContact} onNext={beginAuth} busy={authBusy} error={authError}/>
+    if(step===2) return <VerifyStep contact={contact} method={method} onBack={()=>{setAuthError('');setStep(1)}} onNext={verifyAuth} onResend={beginAuth} busy={authBusy} error={authError} devCode={otpDevCode}/>
+    if(step===3) return <ClientTypeStep value={clientType} onChange={setClientType} onBack={()=>setStep(2)} onNext={()=>{setAuthError('');setStep(4)}}/>
+    return <ProfileStep type={clientType} contact={contact} method={method} onBack={()=>setStep(3)} onNext={completeRegistration} busy={authBusy} error={authError}/>
   }
 
   const selectedOrder=orders.find(order=>order.id===selectedOrderId)
