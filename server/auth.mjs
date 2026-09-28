@@ -3,11 +3,19 @@ import { db, nowIso, uid } from './db.mjs'
 
 const OTP_TTL_MS=Number(process.env.OTP_TTL_MS||5*60*1000)
 const SESSION_TTL_MS=Number(process.env.SESSION_TTL_MS||30*24*60*60*1000)
+const IS_PROD=process.env.NODE_ENV==='production'
+
+if(IS_PROD&&(!process.env.OTP_SECRET||!process.env.SESSION_SECRET)){
+  throw new Error('OTP_SECRET and SESSION_SECRET are required in production')
+}
+
 const OTP_SECRET=process.env.OTP_SECRET||'bath-dream-local-otp-secret'
 const SESSION_SECRET=process.env.SESSION_SECRET||'bath-dream-local-session-secret'
 const OTP_ECHO=process.env.OTP_ECHO!==undefined
   ? String(process.env.OTP_ECHO)==='1'
-  : process.env.NODE_ENV!=='production'
+  : !IS_PROD
+const OTP_WEBHOOK_URL=String(process.env.OTP_WEBHOOK_URL||'').trim()
+const OTP_WEBHOOK_TOKEN=String(process.env.OTP_WEBHOOK_TOKEN||'').trim()
 
 const sha=value=>createHash('sha256').update(value).digest('hex')
 const otpHash=(challengeId,code)=>sha(`${OTP_SECRET}:${challengeId}:${code}`)
@@ -26,7 +34,34 @@ export function normalizeContact(method,value) {
   return '+'+digits
 }
 
-export function requestOtp(method,contactRaw) {
+async function deliverOtp({requestId,method,contact,code}) {
+  if(OTP_ECHO) return
+
+  if(!OTP_WEBHOOK_URL){
+    throw Object.assign(new Error('OTP delivery provider не настроен'),{status:503})
+  }
+
+  const response=await fetch(OTP_WEBHOOK_URL,{
+    method:'POST',
+    headers:{
+      'content-type':'application/json',
+      ...(OTP_WEBHOOK_TOKEN?{authorization:`Bearer ${OTP_WEBHOOK_TOKEN}`}:{}),
+    },
+    body:JSON.stringify({
+      requestId,
+      method,
+      contact,
+      code,
+      expiresIn:Math.floor(OTP_TTL_MS/1000),
+    }),
+  })
+
+  if(!response.ok){
+    throw Object.assign(new Error('OTP provider не принял сообщение'),{status:502})
+  }
+}
+
+export async function requestOtp(method,contactRaw) {
   if(!['phone','email'].includes(method)) throw Object.assign(new Error('Неизвестный способ подтверждения'),{status:400})
   const contact=normalizeContact(method,contactRaw)
   const cutoff=Date.now()-10*60*1000
@@ -37,6 +72,9 @@ export function requestOtp(method,contactRaw) {
   const code=String(randomInt(1000,10000))
   const createdAt=Date.now()
   const expiresAt=createdAt+OTP_TTL_MS
+
+  await deliverOtp({requestId:id,method,contact,code})
+
   db.prepare(`INSERT INTO otp_challenges(id,method,contact,code_hash,expires_at,attempts,created_at)
               VALUES(?,?,?,?,?,?,?)`).run(id,method,contact,otpHash(id,code),expiresAt,0,createdAt)
 
