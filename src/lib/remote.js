@@ -1,7 +1,9 @@
-const API_BASE=String(import.meta.env.VITE_API_URL||'').replace(/\/$/,'')
+const RAW_API_BASE=String(import.meta.env.VITE_API_URL||'').trim()
+const SAME_ORIGIN=RAW_API_BASE==='same-origin'
+const API_BASE=SAME_ORIGIN?'':RAW_API_BASE.replace(/\/$/,'')
 const TOKEN_KEY='bathdream.remote.token'
 
-export const REMOTE_ENABLED=Boolean(API_BASE)
+export const REMOTE_ENABLED=SAME_ORIGIN||Boolean(API_BASE)
 
 function readToken() {
   try { return localStorage.getItem(TOKEN_KEY)||'' } catch { return '' }
