@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
-  DEMO_CATALOG, DEMO_RATES, DEMO_RISKS, OBJECT_TYPES, ROOM_TYPES,
+  DEMO_CATALOG, DEMO_RATES, DEMO_RISKS, LOGISTICS_RATES, OBJECT_TYPES, ROOM_TYPES, WASTE_RULES,
   buildEstimateRows, calculateWasteAndLogistics, money, newRoom, roomCalc,
   suggestedQuantity, toNum,
 } from '../domain/model.js'
@@ -156,11 +156,20 @@ function DemolitionStep({rooms,selections,setSelections,onBack,onNext}) {
   </section>
 }
 
-function EstimateStep({rooms,selections,initialRates,floor,lift,onBack,onSave}) {
-  const [rates,setRates]=useState(()=>({...DEMO_RATES,...(initialRates||{})}))
+function EstimateStep({rooms,selections,initialRates,floor,lift,onBack,onSave,pricingConfig}) {
+  const baseRates=pricingConfig?.rates||DEMO_RATES
+  const [rates,setRates]=useState(()=>({...baseRates,...(initialRates||{})}))
+  useEffect(()=>{
+    if(!initialRates&&pricingConfig?.rates) setRates({...pricingConfig.rates})
+  },[pricingConfig?.id])
   const rows=useMemo(()=>buildEstimateRows(rooms,selections,rates),[rooms,selections,rates])
   const workTotal=rows.reduce((sum,row)=>sum+row.sum,0)
-  const logistics=useMemo(()=>calculateWasteAndLogistics(rows,{floor,lift}),[rows,floor,lift])
+  const logisticsRates=pricingConfig?.logisticsRates||LOGISTICS_RATES
+  const wasteRules=pricingConfig?.wasteRules||WASTE_RULES
+  const logistics=useMemo(
+    ()=>calculateWasteAndLogistics(rows,{floor,lift,rates:logisticsRates,wasteRules}),
+    [rows,floor,lift,pricingConfig?.id],
+  )
   const grandTotal=workTotal+logistics.total
 
   const grouped=rooms.map(room=>({room,rows:rows.filter(row=>row.roomId===room.id)})).filter(group=>group.rows.length)
@@ -170,7 +179,7 @@ function EstimateStep({rooms,selections,initialRates,floor,lift,onBack,onSave}) 
     <button className="back-link" type="button" onClick={onBack}>← Демонтажные работы</button>
     <StepMeta current={4}/>
     <div className="workspace__head estimate-head">
-      <div><p className="eyebrow">Предварительная смета</p><h1>Расчёт демонтажа</h1><p className="workspace__subtitle">Работы, отходы и логистика считаются отдельными блоками. Все ставки v1 остаются редактируемыми.</p></div>
+      <div><p className="eyebrow">Предварительная смета</p><h1>Расчёт демонтажа</h1><p className="workspace__subtitle">Работы, отходы и логистика считаются отдельными блоками. Прайс: {pricingConfig?`${pricingConfig.code} · v${pricingConfig.version}`:'локальная модель v1'}.</p></div>
       <div className="estimate-total"><span>Текущий итог</span><strong>{money(grandTotal)} ₽</strong></div>
     </div>
 
@@ -216,15 +225,29 @@ function EstimateStep({rooms,selections,initialRates,floor,lift,onBack,onSave}) 
     </div>
 
     <p className="estimate-disclaimer">Ставки и коэффициенты сейчас являются расчётной моделью прототипа. Перед коммерческим запуском их необходимо актуализировать и утвердить.</p>
-    <div className="wizard-footer"><div><span>Статус</span><strong>Черновик заказа готов</strong></div><button className="button button--primary button--finish" type="button" onClick={()=>onSave({rates,workTotal,logistics,total:grandTotal})}>Сохранить заказ</button></div>
+    <div className="wizard-footer"><div><span>Статус</span><strong>Черновик заказа готов</strong></div><button className="button button--primary button--finish" type="button" onClick={()=>onSave({
+      rates,
+      workTotal,
+      logistics,
+      total:grandTotal,
+      priceBook:pricingConfig?{
+        id:pricingConfig.id,code:pricingConfig.code,version:pricingConfig.version,
+        title:pricingConfig.title,currency:pricingConfig.currency,
+      }:{id:'local-v1',code:'LOCAL-DEMO',version:1,title:'Локальная модель v1',currency:'RUB'},
+      pricingSnapshot:pricingConfig||{
+        id:'local-v1',code:'LOCAL-DEMO',version:1,title:'Локальная модель v1',currency:'RUB',
+        rates:DEMO_RATES,wasteRules:WASTE_RULES,logisticsRates:LOGISTICS_RATES,
+      },
+    })}>Сохранить заказ</button></div>
   </section>
 }
 
-export default function CreateOrder({initialOrder,onCancel,onSave}) {
+export default function CreateOrder({initialOrder,onCancel,onSave,pricing}) {
   const isEditing=Boolean(initialOrder?.id)
   const draftKey=isEditing?`bathdream.draft.${initialOrder.id}`:'bathdream.draft.new'
   const savedDraft=useMemo(()=>isEditing?null:readJSON(draftKey,null),[draftKey,isEditing])
   const source=initialOrder||savedDraft||{}
+  const pricingConfig=source.pricingSnapshot||pricing||null
 
   const [orderStep,setOrderStep]=useState(source.orderStep|| (isEditing?4:1))
   const [objectType,setObjectType]=useState(source.objectType||'')
@@ -237,8 +260,8 @@ export default function CreateOrder({initialOrder,onCancel,onSave}) {
   const selected=OBJECT_TYPES.find(x=>x.id===objectType)
 
   useEffect(()=>{
-    writeJSON(draftKey,{orderStep,objectType,address,area,floor,lift,rooms,demolition:demoSelections})
-  },[draftKey,orderStep,objectType,address,area,floor,lift,rooms,demoSelections])
+    writeJSON(draftKey,{orderStep,objectType,address,area,floor,lift,rooms,demolition:demoSelections,pricingSnapshot:pricingConfig})
+  },[draftKey,orderStep,objectType,address,area,floor,lift,rooms,demoSelections,pricingConfig])
 
   const objectValid=Boolean(objectType&&address.trim())
   const roomsValid=rooms.length>0&&rooms.every(room=>{
@@ -280,5 +303,5 @@ export default function CreateOrder({initialOrder,onCancel,onSave}) {
 
   if(orderStep===3) return <DemolitionStep rooms={rooms} selections={demoSelections} setSelections={setDemoSelections} onBack={()=>setOrderStep(2)} onNext={()=>setOrderStep(4)}/>
 
-  return <EstimateStep rooms={rooms} selections={demoSelections} initialRates={initialOrder?.rates} floor={floor} lift={lift} onBack={()=>setOrderStep(3)} onSave={finish}/>
+  return <EstimateStep rooms={rooms} selections={demoSelections} initialRates={initialOrder?.rates} floor={floor} lift={lift} onBack={()=>setOrderStep(3)} onSave={finish} pricingConfig={pricingConfig}/>
 }
