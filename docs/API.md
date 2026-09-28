@@ -1,4 +1,4 @@
-# Bath Dream API v5
+# Bath Dream API v6
 
 Серверный MVP клиентского контура. Runtime: **Node.js 22.14+**, хранилище: **SQLite**.
 
@@ -67,6 +67,16 @@ VITE_API_URL=http://localhost:8787
 `GET /api/me` — текущий аккаунт.
 
 `POST /api/logout` — отозвать текущую сессию.
+
+## Согласование и аудит
+
+Все методы требуют bearer-сессию.
+
+- `GET /api/orders/:number/history` — версии заказа, аудит и история согласований.
+- `POST /api/orders/:number/approvals` — зафиксировать текущую версию заказа на согласование.
+- `PATCH /api/approvals/:id` — завершить согласование: `approved`, `rejected` или `cancelled`.
+
+Каждая запись `ORDER_REVISION` хранит неизменяемый снимок расчёта и краткий diff ключевых показателей. `APPROVAL` ссылается на конкретный номер версии и хранит собственный снимок.
 
 ## Оплаты
 
