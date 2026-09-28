@@ -1,7 +1,7 @@
 {
   "name": "bath-dream-client",
   "private": true,
-  "version": "0.8.0",
+  "version": "0.9.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -13,7 +13,9 @@
     "dev:full": "node scripts/dev-full.mjs",
     "test:otp": "node scripts/otp-webhook-smoke.mjs",
     "pricing": "node scripts/pricing-cli.mjs",
-    "test:pricing": "node scripts/pricing-smoke.mjs"
+    "test:pricing": "node scripts/pricing-smoke.mjs",
+    "start": "node server/api.mjs",
+    "test:production": "node scripts/production-smoke.mjs"
   },
   "dependencies": {
     "react": "^18.3.1",
