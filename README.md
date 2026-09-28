@@ -1,9 +1,10 @@
-# Bath Dream — Client MVP v0.8
+# Bath Dream — Client MVP v0.9
 
 Рабочая модель клиентского контура Bath Dream с двумя режимами:
 
 - **автономный** — React + localStorage;
-- **full-stack** — React + Node API + OTP + SQLite.
+- **full-stack** — React + Node API + OTP + SQLite;
+- **public single-service** — Docker: React SPA и API на одном домене, SQLite на persistent volume.
 
 ## Пользовательский путь
 
@@ -52,6 +53,31 @@ npm run dev
 
 Если `VITE_API_URL` не задан, клиент продолжает работать через localStorage.
 
+## Public Full-Stack v0.9
+
+Репозиторий готов к развёртыванию как один Docker-сервис. Production-сервер одновременно отдаёт React SPA и API:
+
+```
+/         → клиент
+/api/*    → сервер
+```
+
+Docker:
+
+```bash
+docker build -t bath-dream .
+docker run --rm -p 8787:8787 \
+  -v bath-dream-data:/data \
+  -e OTP_SECRET=change-me-otp \
+  -e SESSION_SECRET=change-me-session \
+  -e OTP_ECHO=1 \
+  bath-dream
+```
+
+Для Render подготовлен `render.yaml` с Docker service и persistent disk. Подробности: `docs/DEPLOYMENT.md`.
+
+`OTP_ECHO=1` — только режим публичной демонстрации. Для реального запуска используется внешний SMS/e-mail provider.
+
 ## Full-stack режим
 
 Самый быстрый запуск:
@@ -96,6 +122,7 @@ npm run test:api
 npm run test:otp
 npm run test:pricing
 npm run build
+# в CI дополнительно проверяется single-service production bundle
 ```
 
 ## Серверные сущности
@@ -210,6 +237,6 @@ API/SQLite на GitHub Pages не запускаются: для full-stack prod
 
 ## Следующий слой
 
-Следующий этап: серверный версионируемый прайс и коэффициенты → документы/договор → оплаты → аудит изменений → менеджерский контур.
+После публичного v0.9 следующий этап — production-hardening и клиентский v1.0: реальный OTP-provider, резервные копии/managed DB, утверждённые документы, payment provider, уведомления и финальная UX-полировка.
 
 Исполнительский модуль в текущую клиентскую MVP не входит.
