@@ -1,0 +1,31 @@
+services:
+  - type: web
+    name: bath-dream-client
+    runtime: docker
+    plan: 0.5c-512mb
+    region: frankfurt
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/health
+    numInstances: 1
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "8787"
+      - key: SERVE_STATIC
+        value: "1"
+      - key: DB_FILE
+        value: /data/bathdream.sqlite
+      - key: VITE_API_URL
+        value: same-origin
+      - key: OTP_SECRET
+        generateValue: true
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: OTP_ECHO
+        value: "1"
+    disk:
+      name: bath-dream-data
+      mountPath: /data
+      sizeGB: 1
