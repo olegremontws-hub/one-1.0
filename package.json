@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "test:smoke": "node scripts/smoke.mjs",
     "server": "node server/api.mjs",
-    "test:api": "node scripts/api-smoke.mjs"
+    "test:api": "node scripts/api-smoke.mjs",
+    "dev:full": "node scripts/dev-full.mjs"
   },
   "dependencies": {
     "react": "^18.3.1",
