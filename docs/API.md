@@ -1,4 +1,4 @@
-# Bath Dream API v6
+# Bath Dream API v7
 
 Серверный MVP клиентского контура. Runtime: **Node.js 22.14+**, хранилище: **SQLite**.
 
@@ -67,6 +67,18 @@ VITE_API_URL=http://localhost:8787
 `GET /api/me` — текущий аккаунт.
 
 `POST /api/logout` — отозвать текущую сессию.
+
+## Ход выполнения
+
+Все методы требуют bearer-сессию.
+
+- `GET /api/orders/:number/schedule` — график этапов, агрегированный прогресс и текущая приёмка.
+- `POST /api/orders/:number/schedule` — создать базовый график работ.
+- `PATCH /api/work-stages/:id` — изменить статус, прогресс, даты или комментарий этапа.
+- `POST /api/orders/:number/acceptance` — передать полностью завершённый заказ на приёмку.
+- `PATCH /api/acceptance/:id` — принять результат, запросить исправления или отменить приёмку.
+
+Статусы этапа: `planned / in_progress / blocked / done`. После запуска работ заказ автоматически переходит в `work`, после завершения всех этапов — в `acceptance`, после успешной приёмки — в `done`.
 
 ## Согласование и аудит
 
