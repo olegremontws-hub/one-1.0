@@ -166,7 +166,7 @@ function OrderDetails({order,onBack,onEdit,onStatusChange,onDuplicate,onDelete})
   return <section className="workspace order-details">
     <button className="back-link" type="button" onClick={onBack}>← Мои заказы</button>
     <div className="workspace__head">
-      <div><p className="eyebrow">Заказ №{order.id}</p><h1>{order.objectLabel}</h1><p className="workspace__subtitle">{order.address}</p></div>
+      <div><p className="eyebrow">Заказ №{order.id}</p><h1>{order.objectLabel}</h1><p className="workspace__subtitle">{order.address}{order.priceBook&&<> · Прайс {order.priceBook.code} v{order.priceBook.version}</>}</p></div>
       <div className="detail-head-actions"><button className="button button--soft" type="button" onClick={()=>window.print()}>Печать сметы</button><button className="button button--compact" type="button" onClick={onEdit}>Редактировать</button></div>
     </div>
 
@@ -442,7 +442,13 @@ export default function App() {
 
   const openOrder=id=>{setSelectedOrderId(id);setScreen('order-detail')}
   const editOrder=id=>{setEditingOrderId(id);setScreen('create-order')}
-  const createOrder=()=>{setEditingOrderId(null);setScreen('create-order')}
+  const createOrder=()=>{
+    setEditingOrderId(null)
+    setScreen('create-order')
+    if(REMOTE_ENABLED){
+      loadActivePricing().then(setPricing).catch(()=>{})
+    }
+  }
 
   const duplicateOrder=id=>{
     const order=orders.find(item=>item.id===id)
