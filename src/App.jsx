@@ -97,6 +97,48 @@ const DEMO_CATALOG = [
   },
 ]
 
+const DEMO_RATES = {
+  'DEM-FL-001':700, 'DEM-FL-002':600, 'DEM-FL-004':1000, 'DEM-FL-006':1500,
+  'DEM-FL-007':2000, 'DEM-FL-008':1200, 'DEM-FL-012':250,
+  'DEM-WL-001':500, 'DEM-WL-002':800, 'DEM-WL-003':1500, 'DEM-WL-005':1000,
+  'DEM-WL-006':1300, 'DEM-WL-008':1600, 'DEM-WL-010':3500,
+  'DEM-CL-001':500, 'DEM-CL-002':900, 'DEM-CL-003':700, 'DEM-CL-004':700, 'DEM-CL-005':400,
+  'DEM-EL-LGT-001':100, 'DEM-EL-LGT-002':500, 'DEM-EL-LGT-003':1500, 'DEM-EL-LGT-004':800,
+  'DEM-EL-LGT-005':400, 'DEM-EL-LGT-006':300, 'DEM-EL-LGT-007':600, 'DEM-EL-LGT-008':400,
+  'DEM-EL-LGT-009':500, 'DEM-EL-LGT-010':500,
+  'DEM-EL-001':500, 'DEM-EL-011':500, 'DEM-EL-012':200, 'DEM-EL-013':300, 'DEM-EL-014':500,
+  'DEM-EL-004':1000, 'DEM-EL-005':750, 'DEM-EL-006':300, 'DEM-EL-003':7000, 'DEM-EL-015':400, 'DEM-EL-016':600,
+  'DEM-PL-003':3000, 'DEM-PL-006':2500, 'DEM-PL-005':2000, 'DEM-PL-001':1000,
+  'DEM-PL-007':3500, 'DEM-PL-010':1200, 'DEM-PL-011':1200, 'DEM-PL-009':2500,
+  'DEM-DR-001':3500, 'DEM-DR-002':2000, 'DEM-DR-003':1000,
+  'DEM-WN-001':3000, 'DEM-WN-002':700, 'DEM-WN-003':800,
+  'DEM-FU-001':8000, 'DEM-FU-002':3000, 'DEM-FU-003':5000, 'DEM-FU-004':1000,
+  'DEM-OTHER-001':1000,
+}
+
+const DEMO_AUTO_QTY = {
+  'DEM-FL-001':'floor','DEM-FL-002':'floor','DEM-FL-004':'floor','DEM-FL-006':'floor','DEM-FL-007':'floor','DEM-FL-008':'floor',
+  'DEM-FL-012':'perimeter',
+  'DEM-WL-001':'netWalls','DEM-WL-002':'netWalls','DEM-WL-003':'netWalls',
+  'DEM-CL-001':'ceiling','DEM-CL-002':'ceiling','DEM-CL-003':'ceiling','DEM-CL-004':'ceiling','DEM-CL-005':'ceiling',
+  'DEM-DR-001':'doorQty','DEM-DR-002':'doorQty','DEM-DR-003':'doorQty',
+  'DEM-WN-001':'windowArea',
+}
+
+const DEMO_RISKS = {
+  'DEM-WL-010':'Перед демонтажем железобетонной конструкции требуется инженерная проверка. Если стена несущая или затрагивается проём — нужны проектные решения и согласование.',
+}
+
+const demoItemIndex = Object.fromEntries(
+  DEMO_CATALOG.flatMap(category =>
+    category.groups.flatMap(group =>
+      group.items.map(([code,name,unit]) => [code,{code,name,unit,category:category.title,group:group.title}])
+    )
+  )
+)
+
+const money = value => Math.round(value || 0).toLocaleString('ru-RU')
+
 const toNum = value => Number.parseFloat(String(value ?? '').replace(',', '.')) || 0
 
 function roomCalc(room) {
@@ -116,6 +158,10 @@ function roomCalc(room) {
     ceiling: floor,
     perimeter,
     grossWalls,
+    doorArea,
+    windowArea,
+    doorQty: toNum(room.doorWidth) && toNum(room.doorHeight) ? Math.max(1, toNum(room.doorQty)) : 0,
+    windowQty: toNum(room.windowWidth) && toNum(room.windowHeight) ? Math.max(1, toNum(room.windowQty)) : 0,
     openings,
     netWalls: Math.max(0, grossWalls - openings),
   }
@@ -241,7 +287,7 @@ function OrdersDashboard({orders,onCreateOrder}) {
   return <section className="workspace">
     <div className="workspace__head"><div><p className="eyebrow">Кабинет клиента</p><h1>Мои заказы</h1><p className="workspace__subtitle">Здесь хранятся расчёты, сметы и текущие заказы.</p></div><button className="button button--compact" type="button" onClick={onCreateOrder}>+ Создать заказ</button></div>
     {orders.length===0 ? <div className="empty-state"><div className="empty-state__icon">＋</div><h2>Заказов пока нет</h2><p>Создайте первый заказ: выберите объект, добавьте помещения и перейдите к расчёту работ.</p><button className="button button--primary empty-state__button" type="button" onClick={onCreateOrder}>Создать заказ</button></div> :
-    <div className="order-list">{orders.map(order=><article className="order-card" key={order.id}><div className="order-card__top"><div><span className="status status--draft">Черновик</span><h2>Заказ №{order.id}</h2></div><strong>{order.total.toLocaleString('ru-RU')} ₽</strong></div><dl><div><dt>Объект</dt><dd>{order.objectLabel}</dd></div><div><dt>Адрес</dt><dd>{order.address||'Не указан'}</dd></div><div><dt>Помещения</dt><dd>{order.rooms?.length || 0}</dd></div></dl><div className="order-card__actions"><button className="secondary-button secondary-button--inline" type="button">Продолжить расчёт</button></div></article>)}</div>}
+    <div className="order-list">{orders.map(order=><article className="order-card" key={order.id}><div className="order-card__top"><div><span className="status status--draft">Черновик</span><h2>Заказ №{order.id}</h2></div><strong>{money(order.total)} ₽</strong></div><dl><div><dt>Объект</dt><dd>{order.objectLabel}</dd></div><div><dt>Адрес</dt><dd>{order.address||'Не указан'}</dd></div><div><dt>Помещения</dt><dd>{order.rooms?.length || 0}</dd></div></dl><div className="order-card__actions"><button className="secondary-button secondary-button--inline" type="button">Продолжить расчёт</button></div></article>)}</div>}
   </section>
 }
 
@@ -287,29 +333,36 @@ function RoomCard({room,index,onChange,onRemove,canRemove}) {
   </article>
 }
 
-function DemolitionStep({rooms, selections, setSelections, onBack, onSave}) {
+function DemolitionStep({rooms, selections, setSelections, onBack, onNext}) {
   const [activeRoomId,setActiveRoomId] = useState(rooms[0]?.id || '')
   const [activeCategory,setActiveCategory] = useState('floor')
   const activeRoom = rooms.find(room=>room.id===activeRoomId) || rooms[0]
   const category = DEMO_CATALOG.find(item=>item.id===activeCategory) || DEMO_CATALOG[0]
+  const calc = activeRoom ? roomCalc(activeRoom) : {}
 
-  const qty = code => selections[`${activeRoomId}:${code}`] || 0
+  const qty = code => toNum(selections[`${activeRoomId}:${code}`])
+  const suggestedQty = code => {
+    const source = DEMO_AUTO_QTY[code]
+    if(!source) return 0
+    return toNum(calc[source])
+  }
   const setQty = (code,next) => {
     const key=`${activeRoomId}:${code}`
+    const numeric=Math.max(0,toNum(next))
     setSelections(current=>{
       const copy={...current}
-      if(next<=0) delete copy[key]
-      else copy[key]=next
+      if(numeric<=0) delete copy[key]
+      else copy[key]=Number(numeric.toFixed(2))
       return copy
     })
   }
-  const selectedCount = Object.values(selections).reduce((sum,value)=>sum + (value>0?1:0),0)
+  const selectedCount = Object.values(selections).filter(value=>toNum(value)>0).length
 
   return <section className="workspace workspace--services">
     <button className="back-link" type="button" onClick={onBack}>← Помещения и геометрия</button>
     <StepMeta current={3} total={4} label="Новый заказ"/>
     <div className="workspace__head service-head">
-      <div><p className="eyebrow">Услуги</p><h1>Демонтажные работы</h1><p className="workspace__subtitle">Выберите конкретные элементы. Система позже подтянет технологию, расходники, отходы, вынос и утилизацию.</p></div>
+      <div><p className="eyebrow">Услуги</p><h1>Демонтажные работы</h1><p className="workspace__subtitle">Выберите конкретные элементы. Для площадных работ количество подхватывается из геометрии помещения и при необходимости редактируется вручную.</p></div>
       <div className="selected-counter"><span>Выбрано позиций</span><strong>{selectedCount}</strong></div>
     </div>
 
@@ -323,13 +376,18 @@ function DemolitionStep({rooms, selections, setSelections, onBack, onSave}) {
       </aside>
 
       <div className="service-content">
-        <div className="service-content__title"><div><span className="eyebrow">Помещение: {activeRoom?.type}</span><h2>{category.title}</h2></div>{activeRoom && <small>{roomCalc(activeRoom).floor.toFixed(2)} м² по полу</small>}</div>
+        <div className="service-content__title"><div><span className="eyebrow">Помещение: {activeRoom?.type}</span><h2>{category.title}</h2></div>{activeRoom && <small>{calc.floor.toFixed(2)} м² по полу</small>}</div>
         {category.groups.map(group=><section className="service-group" key={group.title}><h3>{group.title}</h3><div className="service-items">
           {group.items.map(([code,name,unit])=>{
             const value=qty(code)
+            const suggested=suggestedQty(code)
+            const step=unit==='шт'||unit==='компл.'?1:0.5
             return <article className={value>0?'service-item is-selected':'service-item'} key={code}>
-              <div className="service-item__meta"><span className="service-code">{code}</span><strong>{name}</strong><small>Единица: {unit}</small></div>
-              <div className="qty-control"><button type="button" onClick={()=>setQty(code,Math.max(0,value-1))}>−</button><span>{value}</span><button type="button" onClick={()=>setQty(code,value+1)}>+</button></div>
+              <div className="service-item__meta"><span className="service-code">{code}</span><strong>{name}</strong><small>Единица: {unit}</small>{suggested>0 && <small className="auto-qty">По геометрии: {suggested.toFixed(2)} {unit}</small>}{DEMO_RISKS[code] && value>0 && <small className="risk-note">{DEMO_RISKS[code]}</small>}</div>
+              <div className="qty-wrap">
+                {value<=0 ? <button className="add-service" type="button" onClick={()=>setQty(code,suggested||step)}>Добавить</button> :
+                <div className="qty-control qty-control--editable"><button type="button" onClick={()=>setQty(code,value-step)}>−</button><input inputMode="decimal" value={String(value).replace('.',',')} onChange={e=>setQty(code,e.target.value)} aria-label={`Количество ${name}`}/><button type="button" onClick={()=>setQty(code,value+step)}>+</button></div>}
+              </div>
             </article>
           })}
         </div></section>)}
@@ -337,9 +395,73 @@ function DemolitionStep({rooms, selections, setSelections, onBack, onSave}) {
       </div>
     </div>
 
-    <div className="wizard-footer"><div><span>Следующий модуль</span><strong>Предварительная смета</strong></div><button className="button button--primary button--finish" type="button" onClick={onSave}>Сохранить черновик</button></div>
+    <div className="wizard-footer"><div><span>Следующий модуль</span><strong>Предварительная смета</strong></div><button className="button button--primary button--finish" type="button" onClick={onNext}>Рассчитать смету</button></div>
   </section>
 }
+
+function EstimateStep({rooms,selections,onBack,onSave}) {
+  const [rates,setRates] = useState(DEMO_RATES)
+  const rows = Object.entries(selections).map(([key,quantity])=>{
+    const split=key.indexOf(':')
+    const roomId=key.slice(0,split)
+    const code=key.slice(split+1)
+    const room=rooms.find(item=>item.id===roomId)
+    const item=demoItemIndex[code] || {code,name:code,unit:'шт',category:'Другое'}
+    const rate=toNum(rates[code])
+    return {...item,roomId,roomName:room?.type||'Помещение',quantity:toNum(quantity),rate,sum:toNum(quantity)*rate}
+  }).filter(row=>row.quantity>0)
+
+  const workTotal=rows.reduce((sum,row)=>sum+row.sum,0)
+  const grouped=rooms.map(room=>({
+    room,
+    rows:rows.filter(row=>row.roomId===room.id),
+  })).filter(group=>group.rows.length)
+
+  const updateRate=(code,value)=>setRates(current=>({...current,[code]:Math.max(0,toNum(value))}))
+
+  return <section className="workspace workspace--estimate">
+    <button className="back-link" type="button" onClick={onBack}>← Демонтажные работы</button>
+    <StepMeta current={4} total={4} label="Новый заказ"/>
+    <div className="workspace__head estimate-head">
+      <div><p className="eyebrow">Предварительная смета</p><h1>Расчёт демонтажа</h1><p className="workspace__subtitle">Расчётные верхние ставки v1 можно корректировать прямо в смете. Вынос, транспорт и утилизация показаны отдельно и пока не включены в стоимость работ.</p></div>
+      <div className="estimate-total"><span>Работы</span><strong>{money(workTotal)} ₽</strong></div>
+    </div>
+
+    {grouped.length===0 ? <div className="empty-state estimate-empty"><h2>Демонтаж не выбран</h2><p>Можно вернуться и добавить позиции либо сохранить заказ без демонтажных работ.</p></div> :
+      <div className="estimate-groups">{grouped.map(({room,rows:roomRows})=><section className="estimate-room" key={room.id}>
+        <div className="estimate-room__head"><div><span className="room-index">✓</span><h2>{room.type}</h2></div><strong>{money(roomRows.reduce((s,r)=>s+r.sum,0))} ₽</strong></div>
+        <div className="estimate-table">
+          <div className="estimate-row estimate-row--head"><span>Работа</span><span>Количество</span><span>Ставка</span><span>Сумма</span></div>
+          {roomRows.map(row=><div className="estimate-row" key={row.roomId+row.code}>
+            <div><strong>{row.name}</strong><small>{row.code} · {row.category}</small>{DEMO_RISKS[row.code] && <small className="risk-note risk-note--table">Инженерная проверка</small>}</div>
+            <span>{row.quantity.toFixed(2)} {row.unit}</span>
+            <label className="rate-input"><input inputMode="numeric" value={rates[row.code] ?? 0} onChange={e=>updateRate(row.code,e.target.value)}/><span>₽/{row.unit}</span></label>
+            <strong>{money(row.sum)} ₽</strong>
+          </div>)}
+        </div>
+      </section>)}</div>
+    }
+
+    <section className="logistics-block">
+      <div className="logistics-block__head"><div><p className="eyebrow">Отдельно от работ</p><h2>Мусор и логистика</h2></div><span className="status status--draft">Следующий слой расчёта</span></div>
+      <div className="logistics-grid">
+        <div><span>Упаковка и мешки</span><strong>Не рассчитано</strong><small>Будет зависеть от состава и объёма отходов.</small></div>
+        <div><span>Вынос и погрузка</span><strong>Не рассчитано</strong><small>Учитываем этаж, лифт, расстояние до машины.</small></div>
+        <div><span>Транспорт и утилизация</span><strong>Не рассчитано</strong><small>Контейнер / машина / полигон считаются отдельными строками.</small></div>
+      </div>
+    </section>
+
+    <div className="estimate-summary">
+      <div><span>Демонтажные работы</span><strong>{money(workTotal)} ₽</strong></div>
+      <div><span>Мусор и логистика</span><strong>отдельно</strong></div>
+      <div className="estimate-summary__total"><span>Текущий итог</span><strong>{money(workTotal)} ₽</strong></div>
+    </div>
+
+    <p className="estimate-disclaimer">Это расчётная модель прототипа, а не публичная оферта. Перед коммерческим предложением ставки и технологические коэффициенты должны пройти актуализацию.</p>
+    <div className="wizard-footer"><div><span>Статус</span><strong>Черновик заказа готов</strong></div><button className="button button--primary button--finish" type="button" onClick={()=>onSave({rates,workTotal})}>Сохранить заказ</button></div>
+  </section>
+}
+
 
 function CreateOrder({onCancel,onSave}) {
   const [orderStep,setOrderStep]=useState(1)
@@ -356,6 +478,17 @@ function CreateOrder({onCancel,onSave}) {
   const roomsValid=rooms.length>0 && rooms.every(room=>{
     const calc=roomCalc(room)
     return room.type && calc.floor>0 && toNum(room.height)>0
+  })
+
+  const baseOrder=()=>({
+    objectType,
+    objectLabel:selected?.title,
+    address,
+    area,
+    floor,
+    lift,
+    rooms:rooms.map(room=>({...room,calc:roomCalc(room)})),
+    demolition:demoSelections,
   })
 
   if(orderStep===1) return <section className="workspace workspace--narrow">
@@ -381,7 +514,9 @@ function CreateOrder({onCancel,onSave}) {
     <div className="wizard-footer"><div><span>Следующий модуль</span><strong>Услуги → Демонтажные работы</strong></div><button className="button button--primary button--finish" disabled={!roomsValid} type="button" onClick={()=>setOrderStep(3)}>Продолжить</button></div>
   </section>
 
-  return <DemolitionStep rooms={rooms} selections={demoSelections} setSelections={setDemoSelections} onBack={()=>setOrderStep(2)} onSave={()=>onSave({objectType,objectLabel:selected?.title,address,area,floor,lift,rooms:rooms.map(room=>({...room,calc:roomCalc(room)})),demolition:demoSelections})}/>
+  if(orderStep===3) return <DemolitionStep rooms={rooms} selections={demoSelections} setSelections={setDemoSelections} onBack={()=>setOrderStep(2)} onNext={()=>setOrderStep(4)}/>
+
+  return <EstimateStep rooms={rooms} selections={demoSelections} onBack={()=>setOrderStep(3)} onSave={({rates,workTotal})=>onSave({...baseOrder(),rates,total:workTotal})}/>
 }
 
 export default function App() {
@@ -396,7 +531,7 @@ export default function App() {
   const authenticated = screen !== 'auth'
 
   const finishOrderStart = data => {
-    const next={id:String(1923+orders.length),...data,total:0}
+    const next={id:String(1923+orders.length),...data,total:toNum(data.total)}
     setOrders(current=>[next,...current])
     setScreen('orders')
   }
