@@ -221,7 +221,7 @@ export default function App() {
   const [remoteReady,setRemoteReady]=useState(!REMOTE_ENABLED)
 
   const authenticated=Boolean(profile)
-  const account=profile?{profile,clientType,contact,method}:null
+  const account=useMemo(()=>profile?{profile,clientType,contact,method}:null,[profile,clientType,contact,method])
 
   useEffect(()=>writeJSON(ORDERS_KEY,orders),[orders])
 
