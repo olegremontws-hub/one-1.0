@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import CreateOrder from './components/CreateOrder.jsx'
 import {
-  CLIENT_TYPES, ORDER_STATUSES, PROFILE_FIELDS, cloneOrder, money,
+  CLIENT_TYPES, ORDER_STATUSES, PROFILE_FIELDS, buildEstimateRows, cloneOrder, money,
   statusLabel, validateOrder, validateProfileField,
 } from './domain/model.js'
 import { makeBackup, downloadBackup, readBackupFile } from './lib/backup.js'
@@ -153,12 +153,13 @@ function OrdersDashboard({orders,onCreateOrder,onOpenOrder,onEditOrder,onDuplica
 function OrderDetails({order,onBack,onEdit,onStatusChange,onDuplicate,onDelete}) {
   if(!order) return null
   const logistics=order.logistics||{}
+  const estimateRows=buildEstimateRows(order.rooms||[],order.demolition||{},order.rates||{})
 
   return <section className="workspace order-details">
     <button className="back-link" type="button" onClick={onBack}>← Мои заказы</button>
     <div className="workspace__head">
       <div><p className="eyebrow">Заказ №{order.id}</p><h1>{order.objectLabel}</h1><p className="workspace__subtitle">{order.address}</p></div>
-      <button className="button button--compact" type="button" onClick={onEdit}>Редактировать</button>
+      <div className="detail-head-actions"><button className="button button--soft" type="button" onClick={()=>window.print()}>Печать сметы</button><button className="button button--compact" type="button" onClick={onEdit}>Редактировать</button></div>
     </div>
 
     <div className="order-control-bar">
@@ -179,6 +180,21 @@ function OrderDetails({order,onBack,onEdit,onStatusChange,onDuplicate,onDelete})
     </div>
 
     <section className="detail-card detail-card--wide"><p className="eyebrow">Помещения</p><div className="saved-rooms">{(order.rooms||[]).map(room=><div key={room.id}><strong>{room.type}</strong><span>{Number(room.calc?.floor||0).toFixed(2)} м² пола</span><span>{Number(room.calc?.netWalls||0).toFixed(2)} м² стен</span></div>)}</div></section>
+
+    <section className="detail-card detail-card--wide print-estimate">
+      <p className="eyebrow">Предварительная смета</p>
+      <h2>Демонтажные работы</h2>
+      <div className="detail-estimate">
+        <div className="detail-estimate__row detail-estimate__row--head"><span>Работа</span><span>Помещение</span><span>Кол-во</span><span>Цена</span><span>Сумма</span></div>
+        {estimateRows.length===0?<p className="muted">Работы не выбраны.</p>:estimateRows.map(row=><div className="detail-estimate__row" key={row.roomId+row.code}>
+          <div><strong>{row.name}</strong><small>{row.code}</small></div>
+          <span>{row.roomName}</span>
+          <span>{row.quantity.toFixed(2)} {row.unit}</span>
+          <span>{money(row.rate)} ₽</span>
+          <strong>{money(row.sum)} ₽</strong>
+        </div>)}
+      </div>
+    </section>
 
     <div className="estimate-summary detail-total">
       <div><span>Демонтажные работы</span><strong>{money(order.workTotal)} ₽</strong></div>
