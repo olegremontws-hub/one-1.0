@@ -7,9 +7,9 @@ import {
 import { makeBackup, downloadBackup, readBackupFile } from './lib/backup.js'
 import {
   REMOTE_ENABLED, createOrderDocument, createOrderPayment, hasRemoteSession, loadActivePricing,
-  loadOrderDocuments, loadOrderPayments, loadRemoteState, logoutRemote, requestRemoteOtp,
-  saveRemoteProfile, saveRemoteState, updateRemoteDocumentStatus, updateRemotePaymentStatus,
-  verifyRemoteOtp,
+  loadOrderDocuments, loadOrderHistory, loadOrderPayments, loadRemoteState, logoutRemote,
+  requestOrderApproval, requestRemoteOtp, respondOrderApproval, saveRemoteProfile, saveRemoteState,
+  updateRemoteDocumentStatus, updateRemotePaymentStatus, verifyRemoteOtp,
 } from './lib/remote.js'
 import { readJSON, removeKey, writeJSON } from './lib/storage.js'
 
@@ -387,6 +387,135 @@ function PaymentsPanel({orderNumber}) {
   </section>
 }
 
+
+const APPROVAL_STATUS_LABELS={
+  pending:'Ожидает подтверждения',
+  approved:'Согласовано',
+  rejected:'Нужны изменения',
+  cancelled:'Отменено',
+}
+
+function ApprovalAuditPanel({order,onStatusChange}) {
+  const [history,setHistory]=useState({revisions:[],events:[],approvals:[]})
+  const [busy,setBusy]=useState('')
+  const [error,setError]=useState('')
+  const [note,setNote]=useState('')
+
+  const refresh=async()=>{
+    if(!REMOTE_ENABLED) return
+    setError('')
+    try {
+      const data=await loadOrderHistory(order.id)
+      setHistory(data||{revisions:[],events:[],approvals:[]})
+    } catch (err) {
+      setError(err instanceof Error?err.message:'Не удалось загрузить историю заказа')
+    }
+  }
+
+  useEffect(()=>{refresh()},[order.id])
+
+  const request=async()=>{
+    setBusy('request');setError('')
+    try {
+      await requestOrderApproval(order.id)
+      onStatusChange('review')
+      await refresh()
+    } catch (err) {
+      setError(err instanceof Error?err.message:'Не удалось зафиксировать версию на согласование')
+    } finally {
+      setBusy('')
+    }
+  }
+
+  const respond=async(approval,status)=>{
+    setBusy(approval.id);setError('')
+    try {
+      await respondOrderApproval(approval.id,status,note)
+      onStatusChange(status==='approved'?'contract':'calculated')
+      setNote('')
+      await refresh()
+    } catch (err) {
+      setError(err instanceof Error?err.message:'Не удалось завершить согласование')
+    } finally {
+      setBusy('')
+    }
+  }
+
+  if(!REMOTE_ENABLED){
+    return <section className="detail-card detail-card--wide approval-block">
+      <p className="eyebrow">Согласование и история</p>
+      <h2>Текущая локальная версия</h2>
+      <p className="muted">Заказ сохранён {order.updatedAt?new Date(order.updatedAt).toLocaleString('ru-RU'):'в этом браузере'}. Полная история версий и подтверждение клиента доступны в full-stack режиме.</p>
+    </section>
+  }
+
+  const pending=(history.approvals||[]).find(item=>item.status==='pending')
+  const latestRevision=history.revisions?.[0]
+  const recentRevisions=(history.revisions||[]).slice(0,6)
+
+  return <section className="detail-card detail-card--wide approval-block">
+    <div className="approval-head">
+      <div>
+        <p className="eyebrow">Согласование и история</p>
+        <h2>{pending?'Версия ожидает подтверждения':'История заказа'}</h2>
+        <p className="muted">Каждое содержательное изменение создаёт серверную версию. На согласование уходит неизменяемый снимок конкретной версии.</p>
+      </div>
+      <button className="button button--soft" type="button" onClick={refresh}>Обновить</button>
+    </div>
+
+    <div className="approval-kpis">
+      <div><span>Текущая версия</span><strong>v{latestRevision?.version||1}</strong></div>
+      <div><span>Изменений</span><strong>{history.revisions?.length||0}</strong></div>
+      <div><span>Согласований</span><strong>{history.approvals?.length||0}</strong></div>
+      <div><span>Статус</span><strong>{pending?'На согласовании':statusLabel(order.status)}</strong></div>
+    </div>
+
+    {error&&<div className="notice notice--error">{error}</div>}
+
+    {pending?<div className="approval-current">
+      <div>
+        <span className="approval-badge">Версия v{pending.revisionVersion}</span>
+        <strong>{APPROVAL_STATUS_LABELS[pending.status]}</strong>
+        <small>Зафиксирована {new Date(pending.createdAt).toLocaleString('ru-RU')} · сумма {money(pending.snapshot?.total||0)} ₽</small>
+      </div>
+      <label className="field approval-note"><span>Комментарий, если нужны изменения</span><input value={note} onChange={e=>setNote(e.target.value)} placeholder="Например: изменить объём демонтажа"/></label>
+      <div className="approval-actions">
+        <button className="button button--primary button--compact" type="button" disabled={Boolean(busy)} onClick={()=>respond(pending,'approved')}>Подтвердить расчёт</button>
+        <button className="button button--soft" type="button" disabled={Boolean(busy)} onClick={()=>respond(pending,'rejected')}>Нужны изменения</button>
+      </div>
+    </div>:<div className="approval-start">
+      <div><strong>Расчёт готов к фиксации</strong><span>Создадим снимок текущей версии сметы. Последующие изменения пойдут уже в новую версию.</span></div>
+      <button className="button button--compact" type="button" disabled={Boolean(busy)||!latestRevision} onClick={request}>{busy==='request'?'Фиксируем…':'Зафиксировать на согласование'}</button>
+    </div>}
+
+    <div className="revision-list">
+      <h3>Последние версии</h3>
+      {recentRevisions.length===0?<p className="muted">История появится после первой серверной синхронизации заказа.</p>:recentRevisions.map(revision=>{
+        const changes=Object.values(revision.change||{})
+        return <article className="revision-row" key={revision.id}>
+          <div className="revision-row__version">v{revision.version}</div>
+          <div className="revision-row__body">
+            <strong>{revision.version===1?'Создан заказ':changes.length?changes.map(item=>item.label).join(' · '):'Сохранена версия'}</strong>
+            <span>{new Date(revision.createdAt).toLocaleString('ru-RU')}</span>
+            {changes.length>0&&revision.version>1&&<div className="revision-changes">{changes.slice(0,5).map((item,index)=><small key={index}>{item.label}: {String(item.from??'—')} → {String(item.to??'—')}</small>)}</div>}
+          </div>
+          <strong>{money(revision.snapshot?.total||0)} ₽</strong>
+        </article>
+      })}
+    </div>
+
+    {(history.approvals||[]).length>0&&<div className="approval-history">
+      <h3>Согласования</h3>
+      {(history.approvals||[]).slice(0,5).map(item=><div className="approval-history__row" key={item.id}>
+        <span>v{item.revisionVersion}</span>
+        <strong>{APPROVAL_STATUS_LABELS[item.status]||item.status}</strong>
+        <small>{new Date(item.respondedAt||item.createdAt).toLocaleString('ru-RU')}</small>
+        {item.note&&<em>{item.note}</em>}
+      </div>)}
+    </div>}
+  </section>
+}
+
 function OrderDetails({order,onBack,onEdit,onStatusChange,onDuplicate,onDelete}) {
   if(!order) return null
   const logistics=order.logistics||{}
@@ -439,6 +568,7 @@ function OrderDetails({order,onBack,onEdit,onStatusChange,onDuplicate,onDelete})
       <div className="estimate-summary__total"><span>Итого</span><strong>{money(order.total)} ₽</strong></div>
     </div>
 
+    <ApprovalAuditPanel order={order} onStatusChange={onStatusChange}/>
     <PaymentsPanel orderNumber={order.id}/>
     <DocumentsPanel orderNumber={order.id}/>
   </section>
