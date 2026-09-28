@@ -46,6 +46,14 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Build single-service production bundle
+        env:
+          VITE_API_URL: same-origin
+        run: npx vite build --base=/ --outDir dist-production
+
+      - name: Smoke test single-service production
+        run: npm run test:production
+
       - name: Setup Pages
         id: pages
         continue-on-error: true
