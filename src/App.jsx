@@ -6,9 +6,10 @@ import {
 } from './domain/model.js'
 import { makeBackup, downloadBackup, readBackupFile } from './lib/backup.js'
 import {
-  REMOTE_ENABLED, createOrderDocument, hasRemoteSession, loadActivePricing, loadOrderDocuments,
-  loadRemoteState, logoutRemote, requestRemoteOtp, saveRemoteProfile, saveRemoteState,
-  updateRemoteDocumentStatus, verifyRemoteOtp,
+  REMOTE_ENABLED, createOrderDocument, createOrderPayment, hasRemoteSession, loadActivePricing,
+  loadOrderDocuments, loadOrderPayments, loadRemoteState, logoutRemote, requestRemoteOtp,
+  saveRemoteProfile, saveRemoteState, updateRemoteDocumentStatus, updateRemotePaymentStatus,
+  verifyRemoteOtp,
 } from './lib/remote.js'
 import { readJSON, removeKey, writeJSON } from './lib/storage.js'
 
@@ -277,6 +278,115 @@ function DocumentsPanel({orderNumber}) {
   </section>
 }
 
+
+const PAYMENT_KIND_LABELS={
+  advance:'Аванс',
+  final:'Финальный платёж',
+  other:'Другой платёж',
+}
+const PAYMENT_STATUS_LABELS={
+  planned:'Запланирован',
+  paid:'Оплачен',
+  cancelled:'Отменён',
+}
+
+function PaymentsPanel({orderNumber}) {
+  const [data,setData]=useState({items:[],summary:{}})
+  const [amount,setAmount]=useState('')
+  const [kind,setKind]=useState('advance')
+  const [dueAt,setDueAt]=useState('')
+  const [busy,setBusy]=useState('')
+  const [error,setError]=useState('')
+
+  const refresh=async()=>{
+    if(!REMOTE_ENABLED) return
+    setError('')
+    try {
+      const next=await loadOrderPayments(orderNumber)
+      setData(next||{items:[],summary:{}})
+    } catch (err) {
+      setError(err instanceof Error?err.message:'Не удалось загрузить оплаты')
+    }
+  }
+
+  useEffect(()=>{refresh()},[orderNumber])
+
+  const create=async()=>{
+    const numeric=Number(String(amount).replace(',','.'))
+    if(!numeric||numeric<=0){
+      setError('Введите сумму платежа')
+      return
+    }
+    setBusy('create');setError('')
+    try {
+      await createOrderPayment(orderNumber,{kind,amount:numeric,dueAt:dueAt||null})
+      setAmount('')
+      setDueAt('')
+      await refresh()
+    } catch (err) {
+      setError(err instanceof Error?err.message:'Не удалось создать платёж')
+    } finally {
+      setBusy('')
+    }
+  }
+
+  const changeStatus=async(payment,status)=>{
+    setBusy(payment.id);setError('')
+    try {
+      await updateRemotePaymentStatus(payment.id,status)
+      await refresh()
+    } catch (err) {
+      setError(err instanceof Error?err.message:'Не удалось изменить платёж')
+    } finally {
+      setBusy('')
+    }
+  }
+
+  if(!REMOTE_ENABLED) return <section className="detail-card detail-card--wide payments-block">
+    <p className="eyebrow">Оплата</p>
+    <h2>План платежей</h2>
+    <p className="muted">Оплаты доступны в full-stack режиме с серверной БД.</p>
+  </section>
+
+  const summary=data.summary||{}
+  return <section className="detail-card detail-card--wide payments-block">
+    <div className="payments-head">
+      <div><p className="eyebrow">Оплата</p><h2>План платежей</h2><p className="muted">Планируем аванс и финальный платёж, затем фиксируем фактическую оплату.</p></div>
+      <button className="button button--soft" type="button" onClick={refresh}>Обновить</button>
+    </div>
+
+    <div className="payment-kpis">
+      <div><span>Заказ</span><strong>{money(summary.orderTotal||0)} ₽</strong></div>
+      <div><span>Оплачено</span><strong>{money(summary.paid||0)} ₽</strong></div>
+      <div><span>Запланировано</span><strong>{money(summary.planned||0)} ₽</strong></div>
+      <div><span>Остаток</span><strong>{money(summary.remaining||0)} ₽</strong></div>
+    </div>
+
+    <div className="payment-create">
+      <label className="field"><span>Тип</span><select value={kind} onChange={e=>setKind(e.target.value)}>
+        {Object.entries(PAYMENT_KIND_LABELS).map(([value,label])=><option key={value} value={value}>{label}</option>)}
+      </select></label>
+      <label className="field"><span>Сумма, ₽</span><input inputMode="decimal" placeholder="50 000" value={amount} onChange={e=>setAmount(e.target.value.replace(/[^0-9.,]/g,''))}/></label>
+      <label className="field"><span>Плановая дата</span><input type="date" value={dueAt} onChange={e=>setDueAt(e.target.value)}/></label>
+      <button className="button button--compact payment-create__button" type="button" disabled={Boolean(busy)||Number(summary.unplanned||0)<=0} onClick={create}>{busy==='create'?'Сохраняем…':'+ Добавить платёж'}</button>
+    </div>
+
+    {error&&<div className="notice notice--error">{error}</div>}
+
+    {(data.items||[]).length===0?<div className="document-empty">Платежей пока нет.</div>:
+    <div className="payment-list">{data.items.map(payment=><article className="payment-row" key={payment.id}>
+      <div><strong>{PAYMENT_KIND_LABELS[payment.kind]||payment.kind}</strong><span>{payment.dueAt?'до '+new Date(payment.dueAt+'T00:00:00').toLocaleDateString('ru-RU'):'без даты'}</span></div>
+      <strong>{money(payment.amount)} ₽</strong>
+      <span className={'payment-status payment-status--'+payment.status}>{PAYMENT_STATUS_LABELS[payment.status]||payment.status}</span>
+      <div className="payment-row__actions">
+        {payment.status==='planned'&&<button type="button" disabled={busy===payment.id} onClick={()=>changeStatus(payment,'paid')}>Отметить оплаченным</button>}
+        {payment.status==='planned'&&<button className="danger-link" type="button" disabled={busy===payment.id} onClick={()=>changeStatus(payment,'cancelled')}>Отменить</button>}
+        {payment.status==='paid'&&<span className="document-signed">✓ {payment.paidAt?new Date(payment.paidAt).toLocaleDateString('ru-RU'):'Оплачено'}</span>}
+      </div>
+    </article>)}</div>}
+  </section>
+}
+
 function OrderDetails({order,onBack,onEdit,onStatusChange,onDuplicate,onDelete}) {
   if(!order) return null
   const logistics=order.logistics||{}
@@ -329,6 +439,7 @@ function OrderDetails({order,onBack,onEdit,onStatusChange,onDuplicate,onDelete})
       <div className="estimate-summary__total"><span>Итого</span><strong>{money(order.total)} ₽</strong></div>
     </div>
 
+    <PaymentsPanel orderNumber={order.id}/>
     <DocumentsPanel orderNumber={order.id}/>
   </section>
 }
