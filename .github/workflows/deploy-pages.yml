@@ -40,6 +40,9 @@ jobs:
       - name: Smoke test production OTP webhook
         run: npm run test:otp
 
+      - name: Smoke test versioned pricing
+        run: npm run test:pricing
+
       - name: Build
         run: npm run build
 
