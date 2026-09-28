@@ -1,13 +1,14 @@
 {
   "name": "bath-dream-client",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test:smoke": "node scripts/smoke.mjs"
+    "test:smoke": "node scripts/smoke.mjs",
+    "server": "node server/api.mjs"
   },
   "dependencies": {
     "react": "^18.3.1",
