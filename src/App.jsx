@@ -5,7 +5,10 @@ import {
   statusLabel, validateOrder, validateProfileField,
 } from './domain/model.js'
 import { makeBackup, downloadBackup, readBackupFile } from './lib/backup.js'
-import {\n  REMOTE_ENABLED, hasRemoteSession, loadRemoteState, logoutRemote, requestRemoteOtp,\n  saveRemoteProfile, saveRemoteState, verifyRemoteOtp,\n} from './lib/remote.js'
+import {
+  REMOTE_ENABLED, hasRemoteSession, loadRemoteState, logoutRemote, requestRemoteOtp,
+  saveRemoteProfile, saveRemoteState, verifyRemoteOtp,
+} from './lib/remote.js'
 import { readJSON, removeKey, writeJSON } from './lib/storage.js'
 
 const ACCOUNT_KEY='bathdream.account'
