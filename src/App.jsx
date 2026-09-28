@@ -77,7 +77,7 @@ function VerifyStep({contact,method,onBack,onNext,onResend,busy,error,devCode}) 
     {devCode&&<p className="dev-code">Код локального OTP: <strong>{devCode}</strong></p>}
     {error&&<div className="notice notice--error">{error}</div>}
     <PrimaryButton disabled={!digits.every(Boolean)||busy} onClick={()=>onNext(digits.join(''))}>{busy?'Проверяем…':'Подтвердить'}</PrimaryButton>
-    {!REMOTE_ENABLED&&<p className="hint">В автономном режиме подходит любой четырёхзначный код.</p>
+    {!REMOTE_ENABLED&&<p className="hint">В автономном режиме подходит любой четырёхзначный код.</p>}
   </>
 }
 
