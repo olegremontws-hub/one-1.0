@@ -6,10 +6,11 @@ import {
 } from './domain/model.js'
 import { makeBackup, downloadBackup, readBackupFile } from './lib/backup.js'
 import {
-  REMOTE_ENABLED, createOrderDocument, createOrderPayment, hasRemoteSession, loadActivePricing,
-  loadOrderDocuments, loadOrderHistory, loadOrderPayments, loadRemoteState, logoutRemote,
-  requestOrderApproval, requestRemoteOtp, respondOrderApproval, saveRemoteProfile, saveRemoteState,
-  updateRemoteDocumentStatus, updateRemotePaymentStatus, verifyRemoteOtp,
+  REMOTE_ENABLED, createOrderDocument, createOrderPayment, hasRemoteSession, initializeOrderSchedule,
+  loadActivePricing, loadOrderDocuments, loadOrderHistory, loadOrderPayments, loadOrderSchedule,
+  loadRemoteState, logoutRemote, requestOrderAcceptance, requestOrderApproval, requestRemoteOtp,
+  respondOrderAcceptance, respondOrderApproval, saveRemoteProfile, saveRemoteState,
+  updateRemoteDocumentStatus, updateRemotePaymentStatus, updateRemoteWorkStage, verifyRemoteOtp,
 } from './lib/remote.js'
 import { readJSON, removeKey, writeJSON } from './lib/storage.js'
 
@@ -516,6 +517,254 @@ function ApprovalAuditPanel({order,onStatusChange}) {
   </section>
 }
 
+
+const STAGE_STATUS_LABELS={
+  planned:'Запланирован',
+  in_progress:'В работе',
+  done:'Завершён',
+  blocked:'Пауза',
+}
+const ACCEPTANCE_LABELS={
+  pending:'Ожидает приёмки',
+  accepted:'Принято',
+  changes_requested:'Нужны исправления',
+  cancelled:'Отменено',
+}
+const LOCAL_STAGE_TITLES=[
+  'Подготовка объекта',
+  'Демонтажные работы',
+  'Вынос и погрузка',
+  'Вывоз и утилизация',
+  'Финальная уборка и подготовка к приёмке',
+]
+
+function makeLocalSchedule(orderNumber){
+  const today=new Date()
+  const stages=LOCAL_STAGE_TITLES.map((title,index)=>{
+    const start=new Date(today); start.setDate(start.getDate()+index)
+    const end=new Date(start); end.setDate(end.getDate()+1)
+    return {
+      id:'local-stage-'+orderNumber+'-'+(index+1),
+      sequence:index+1,title,status:'planned',progress:0,
+      plannedStart:start.toISOString().slice(0,10),
+      plannedEnd:end.toISOString().slice(0,10),
+      actualStart:null,actualEnd:null,note:'',
+    }
+  })
+  return {stages,acceptance:null,acceptanceHistory:[]}
+}
+
+function localScheduleSummary(schedule,orderStatus){
+  const stages=schedule?.stages||[]
+  const completed=stages.filter(stage=>stage.status==='done').length
+  const progress=stages.length?Math.round(stages.reduce((sum,stage)=>sum+Number(stage.progress||0),0)/stages.length):0
+  const current=stages.find(stage=>stage.status==='in_progress')||stages.find(stage=>stage.status==='planned')||null
+  return {
+    orderStatus,
+    progress,
+    totalStages:stages.length,
+    completedStages:completed,
+    currentStage:current,
+    canRequestAcceptance:stages.length>0&&completed===stages.length,
+  }
+}
+
+function WorkProgressPanel({order,onStatusChange}){
+  const localKey='bathdream.schedule.'+order.id
+  const [data,setData]=useState(()=>{
+    if(REMOTE_ENABLED) return {stages:[],summary:{},acceptance:null,acceptanceHistory:[]}
+    const saved=readJSON(localKey,null)
+    const base=saved||{stages:[],acceptance:null,acceptanceHistory:[]}
+    return {...base,summary:localScheduleSummary(base,order.status)}
+  })
+  const [busy,setBusy]=useState('')
+  const [error,setError]=useState('')
+  const [acceptNote,setAcceptNote]=useState('')
+
+  const saveLocal=next=>{
+    const withSummary={...next,summary:localScheduleSummary(next,next.acceptance?.status==='accepted'?'done':next.acceptance?.status==='pending'?'acceptance':order.status)}
+    setData(withSummary)
+    writeJSON(localKey,{stages:withSummary.stages,acceptance:withSummary.acceptance,acceptanceHistory:withSummary.acceptanceHistory||[]})
+    return withSummary
+  }
+
+  const refresh=async()=>{
+    if(!REMOTE_ENABLED) return
+    setError('')
+    try {
+      const next=await loadOrderSchedule(order.id)
+      setData(next)
+      if(next?.summary?.orderStatus) onStatusChange(next.summary.orderStatus)
+    } catch(err) {
+      setError(err instanceof Error?err.message:'Не удалось загрузить график работ')
+    }
+  }
+
+  useEffect(()=>{ if(REMOTE_ENABLED) refresh() },[order.id])
+
+  const initialize=async()=>{
+    setBusy('init');setError('')
+    try {
+      if(REMOTE_ENABLED){
+        const next=await initializeOrderSchedule(order.id,{})
+        setData(next)
+      } else {
+        saveLocal(makeLocalSchedule(order.id))
+      }
+    } catch(err) {
+      setError(err instanceof Error?err.message:'Не удалось создать график')
+    } finally {
+      setBusy('')
+    }
+  }
+
+  const updateStage=async(stage,patch)=>{
+    setBusy(stage.id);setError('')
+    try {
+      if(REMOTE_ENABLED){
+        const next=await updateRemoteWorkStage(stage.id,patch)
+        setData(next)
+        if(next?.summary?.orderStatus) onStatusChange(next.summary.orderStatus)
+      } else {
+        const now=new Date().toISOString()
+        const nextStages=data.stages.map(item=>{
+          if(item.id!==stage.id) return item
+          const status=patch.status??item.status
+          let progress=patch.progress??item.progress
+          if(status==='done') progress=100
+          if(status==='planned'&&patch.progress===undefined) progress=0
+          return {
+            ...item,...patch,status,progress,
+            actualStart:(status==='in_progress'||status==='done')&&!item.actualStart?now:item.actualStart,
+            actualEnd:status==='done'&&!item.actualEnd?now:(status!=='done'?null:item.actualEnd),
+          }
+        })
+        const allDone=nextStages.length>0&&nextStages.every(item=>item.status==='done')
+        const anyStarted=nextStages.some(item=>item.status==='in_progress'||item.status==='done')
+        const nextStatus=allDone?'acceptance':anyStarted?'work':order.status
+        saveLocal({...data,stages:nextStages})
+        onStatusChange(nextStatus)
+      }
+    } catch(err) {
+      setError(err instanceof Error?err.message:'Не удалось обновить этап')
+    } finally {
+      setBusy('')
+    }
+  }
+
+  const requestAcceptance=async()=>{
+    setBusy('acceptance');setError('')
+    try {
+      if(REMOTE_ENABLED){
+        const next=await requestOrderAcceptance(order.id,acceptNote)
+        setData(next);onStatusChange('acceptance')
+      } else {
+        const acceptance={
+          id:'local-accept-'+Date.now(),status:'pending',note:acceptNote,
+          createdAt:new Date().toISOString(),respondedAt:null,
+        }
+        saveLocal({...data,acceptance,acceptanceHistory:[acceptance,...(data.acceptanceHistory||[])]})
+        onStatusChange('acceptance')
+      }
+      setAcceptNote('')
+    } catch(err) {
+      setError(err instanceof Error?err.message:'Не удалось начать приёмку')
+    } finally {
+      setBusy('')
+    }
+  }
+
+  const respondAcceptance=async status=>{
+    const current=data.acceptance
+    if(!current) return
+    setBusy('acceptance');setError('')
+    try {
+      if(REMOTE_ENABLED){
+        const next=await respondOrderAcceptance(current.id,status,acceptNote)
+        setData(next)
+        onStatusChange(status==='accepted'?'done':'work')
+      } else {
+        const updated={...current,status,note:acceptNote||current.note,respondedAt:new Date().toISOString()}
+        saveLocal({...data,acceptance:updated,acceptanceHistory:(data.acceptanceHistory||[]).map(item=>item.id===updated.id?updated:item)})
+        onStatusChange(status==='accepted'?'done':'work')
+      }
+      setAcceptNote('')
+    } catch(err) {
+      setError(err instanceof Error?err.message:'Не удалось завершить приёмку')
+    } finally {
+      setBusy('')
+    }
+  }
+
+  const summary=data.summary||localScheduleSummary(data,order.status)
+  const stages=data.stages||[]
+  const acceptance=data.acceptance
+
+  return <section className="detail-card detail-card--wide progress-block">
+    <div className="progress-head">
+      <div><p className="eyebrow">Ход выполнения</p><h2>График работ</h2><p className="muted">План, фактический прогресс и приёмка результата в одном месте.</p></div>
+      {stages.length>0&&<button className="button button--soft" type="button" onClick={REMOTE_ENABLED?refresh:()=>{}}>Прогресс {summary.progress||0}%</button>}
+    </div>
+
+    {error&&<div className="notice notice--error">{error}</div>}
+
+    {stages.length===0?<div className="progress-empty">
+      <div><strong>График ещё не создан</strong><span>Создадим базовые этапы демонтажного заказа. Даты и ход можно менять по мере выполнения.</span></div>
+      <button className="button button--compact" type="button" disabled={busy==='init'} onClick={initialize}>{busy==='init'?'Создаём…':'Создать график работ'}</button>
+    </div>:<>
+      <div className="progress-summary">
+        <div className="progress-ring"><strong>{summary.progress||0}%</strong><span>готово</span></div>
+        <div className="progress-summary__body">
+          <div className="progress-bar"><span style={{width:(summary.progress||0)+'%'}}/></div>
+          <div className="progress-stats">
+            <span>Завершено: <strong>{summary.completedStages||0} из {summary.totalStages||stages.length}</strong></span>
+            <span>Текущий этап: <strong>{summary.currentStage?.title||'Все этапы завершены'}</strong></span>
+          </div>
+        </div>
+      </div>
+
+      <div className="stage-list">{stages.map(stage=><article className={'stage-card stage-card--'+stage.status} key={stage.id}>
+        <div className="stage-card__seq">{stage.sequence}</div>
+        <div className="stage-card__body">
+          <div className="stage-card__head"><strong>{stage.title}</strong><span>{STAGE_STATUS_LABELS[stage.status]||stage.status}</span></div>
+          <div className="stage-card__dates">
+            <span>План: {stage.plannedStart?new Date(stage.plannedStart+'T00:00:00').toLocaleDateString('ru-RU'):'—'} — {stage.plannedEnd?new Date(stage.plannedEnd+'T00:00:00').toLocaleDateString('ru-RU'):'—'}</span>
+            {stage.actualStart&&<span>Старт: {new Date(stage.actualStart).toLocaleDateString('ru-RU')}</span>}
+          </div>
+          <div className="stage-progress"><span style={{width:(stage.progress||0)+'%'}}/></div>
+        </div>
+        <div className="stage-card__actions">
+          {stage.status==='planned'&&<button type="button" disabled={busy===stage.id} onClick={()=>updateStage(stage,{status:'in_progress',progress:10})}>Начать</button>}
+          {stage.status==='in_progress'&&<button type="button" disabled={busy===stage.id} onClick={()=>updateStage(stage,{progress:Math.min(90,(stage.progress||0)+25)})}>+25%</button>}
+          {(stage.status==='in_progress'||stage.status==='blocked')&&<button type="button" disabled={busy===stage.id} onClick={()=>updateStage(stage,{status:'done'})}>Завершить</button>}
+          {stage.status==='in_progress'&&<button className="stage-pause" type="button" disabled={busy===stage.id} onClick={()=>updateStage(stage,{status:'blocked'})}>Пауза</button>}
+          {stage.status==='blocked'&&<button type="button" disabled={busy===stage.id} onClick={()=>updateStage(stage,{status:'in_progress'})}>Продолжить</button>}
+          {stage.status==='done'&&<span className="stage-done">✓ Готово</span>}
+        </div>
+      </article>)}</div>
+
+      {summary.canRequestAcceptance&&!acceptance&&<div className="acceptance-box">
+        <div><strong>Все этапы завершены</strong><span>Зафиксируйте результат и перейдите к приёмке.</span></div>
+        <label className="field"><span>Комментарий к приёмке</span><input value={acceptNote} onChange={e=>setAcceptNote(e.target.value)} placeholder="Например: объект готов к осмотру"/></label>
+        <button className="button button--compact" type="button" disabled={busy==='acceptance'} onClick={requestAcceptance}>Передать на приёмку</button>
+      </div>}
+
+      {acceptance&&<div className={'acceptance-box acceptance-box--'+acceptance.status}>
+        <div><span className="approval-badge">{ACCEPTANCE_LABELS[acceptance.status]||acceptance.status}</span><strong>Приёмка результата</strong><span>{acceptance.note||'Проверьте результат выполнения заказа.'}</span></div>
+        {acceptance.status==='pending'&&<>
+          <label className="field"><span>Комментарий</span><input value={acceptNote} onChange={e=>setAcceptNote(e.target.value)} placeholder="Комментарий по результату"/></label>
+          <div className="acceptance-actions">
+            <button className="button button--primary button--compact" type="button" disabled={busy==='acceptance'} onClick={()=>respondAcceptance('accepted')}>Принять работы</button>
+            <button className="button button--soft" type="button" disabled={busy==='acceptance'} onClick={()=>respondAcceptance('changes_requested')}>Нужны исправления</button>
+          </div>
+        </>}
+        {acceptance.status==='accepted'&&<span className="document-signed">✓ Работы приняты, заказ завершён</span>}
+        {acceptance.status==='changes_requested'&&<button className="button button--compact" type="button" onClick={()=>{const next={...data,acceptance:null};saveLocal(next);onStatusChange('work')}}>Вернуть в работу</button>}
+      </div>}
+    </>}
+  </section>
+}
+
 function OrderDetails({order,onBack,onEdit,onStatusChange,onDuplicate,onDelete}) {
   if(!order) return null
   const logistics=order.logistics||{}
@@ -568,6 +817,7 @@ function OrderDetails({order,onBack,onEdit,onStatusChange,onDuplicate,onDelete})
       <div className="estimate-summary__total"><span>Итого</span><strong>{money(order.total)} ₽</strong></div>
     </div>
 
+    <WorkProgressPanel order={order} onStatusChange={onStatusChange}/>
     <ApprovalAuditPanel order={order} onStatusChange={onStatusChange}/>
     <PaymentsPanel orderNumber={order.id}/>
     <DocumentsPanel orderNumber={order.id}/>
