@@ -6,6 +6,7 @@ import {
 import {
   createOrder, deleteOrder, getOrder, listOrders, syncOrders, updateOrder,
 } from './orders.mjs'
+import { getActivePriceBook } from './pricing.mjs'
 
 const PORT=Number(process.env.PORT||8787)
 const MAX_BODY=2*1024*1024
@@ -48,7 +49,11 @@ const server=http.createServer(async (req,res)=>{
     const url=new URL(req.url,'http://localhost')
 
     if(url.pathname==='/api/health'&&req.method==='GET'){
-      return json(res,200,{ok:true,service:'bath-dream-api',version:2,storage:'sqlite'})
+      return json(res,200,{ok:true,service:'bath-dream-api',version:3,storage:'sqlite'})
+    }
+
+    if(url.pathname==='/api/pricing/active'&&req.method==='GET'){
+      return json(res,200,getActivePriceBook())
     }
 
     if(url.pathname==='/api/auth/otp/request'&&req.method==='POST'){
@@ -82,7 +87,7 @@ const server=http.createServer(async (req,res)=>{
       const auth=requireAuth(req)
       const account=getAccountShape(auth.accountId)
       return json(res,200,{
-        version:2,
+        version:3,
         account,
         orders:account.profile?listOrders(auth.accountId):[],
         updatedAt:new Date().toISOString(),
@@ -97,7 +102,7 @@ const server=http.createServer(async (req,res)=>{
       }
       const orders=syncOrders(auth.accountId,payload.orders||[])
       return json(res,200,{
-        version:2,
+        version:3,
         account:getAccountShape(auth.accountId),
         orders,
         updatedAt:new Date().toISOString(),
@@ -133,5 +138,5 @@ const server=http.createServer(async (req,res)=>{
 })
 
 server.listen(PORT,()=>{
-  console.log(`Bath Dream API v2: http://localhost:${PORT}`)
+  console.log(`Bath Dream API v3: http://localhost:${PORT}`)
 })
