@@ -80,10 +80,11 @@ const server=http.createServer(async (req,res)=>{
 
     if(url.pathname==='/api/state'&&req.method==='GET'){
       const auth=requireAuth(req)
+      const account=getAccountShape(auth.accountId)
       return json(res,200,{
         version:2,
-        account:getAccountShape(auth.accountId),
-        orders:listOrders(auth.accountId),
+        account,
+        orders:account.profile?listOrders(auth.accountId):[],
         updatedAt:new Date().toISOString(),
       })
     }
