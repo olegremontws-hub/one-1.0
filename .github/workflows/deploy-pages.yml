@@ -34,6 +34,9 @@ jobs:
       - name: Smoke test calculation core
         run: npm run test:smoke
 
+      - name: Smoke test local API
+        run: npm run test:api
+
       - name: Build
         run: npm run build
 
