@@ -165,7 +165,7 @@ export function createDocument(accountId,publicNumber,kind) {
 
   db.prepare(`
     INSERT INTO documents(id,order_id,kind,number,version,status,title,content_json,created_at,updated_at)
-    VALUES(?,?,?,?,?,'draft',?,?,?,?,?)
+    VALUES(?,?,?,?,?,'draft',?,?,?,?)
   `).run(id,order.order_id,kind,number,version,meta.title,JSON.stringify(content),now,now)
 
   return serialize(db.prepare('SELECT * FROM documents WHERE id=?').get(id))
