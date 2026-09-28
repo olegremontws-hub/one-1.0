@@ -1058,3 +1058,240 @@ h2 { margin: 0; color: var(--ink); letter-spacing: -.025em; }
     grid-template-columns: 1fr;
   }
 }
+
+
+.field-error {
+  margin-top: -3px;
+  color: var(--danger);
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.service-title-actions {
+  display: grid;
+  justify-items: end;
+  gap: 8px;
+}
+
+.waste-kpis {
+  display: grid;
+  grid-template-columns: repeat(4,1fr);
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.waste-kpis > div {
+  padding: 15px;
+  border-radius: 13px;
+  background: var(--accent-soft);
+}
+
+.waste-kpis span,
+.waste-kpis strong {
+  display: block;
+}
+
+.waste-kpis span {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.waste-kpis strong {
+  margin-top: 5px;
+  color: #176d63;
+  font-size: 18px;
+}
+
+.logistics-grid--priced {
+  grid-template-columns: repeat(5,1fr);
+}
+
+.waste-details {
+  margin-top: 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: #fbfdfc;
+}
+
+.waste-details summary {
+  padding: 14px 16px;
+  cursor: pointer;
+  font-weight: 750;
+}
+
+.waste-details > div {
+  padding: 0 16px 10px;
+}
+
+.waste-details p {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  margin: 0;
+  padding: 10px 0;
+  border-top: 1px solid #eef3f2;
+  font-size: 12px;
+}
+
+.waste-details p span {
+  color: var(--muted);
+}
+
+.order-card__actions {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.order-details {
+  width: min(100%, 1080px);
+  margin: 0 auto;
+}
+
+.order-detail-kpis {
+  display: grid;
+  grid-template-columns: repeat(4,1fr);
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.order-detail-kpis > div {
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: #fff;
+}
+
+.order-detail-kpis span,
+.order-detail-kpis strong {
+  display: block;
+}
+
+.order-detail-kpis span {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.order-detail-kpis strong {
+  margin-top: 7px;
+  font-size: 21px;
+}
+
+.order-detail-kpis > div:first-child {
+  background: var(--accent-soft);
+  border-color: transparent;
+}
+
+.order-detail-kpis > div:first-child strong {
+  color: var(--accent-dark);
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.detail-card {
+  padding: 22px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: #fff;
+}
+
+.detail-card h2 {
+  margin-bottom: 18px;
+  font-size: 22px;
+}
+
+.detail-card dl {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+}
+
+.detail-card dl div {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 12px;
+  padding-top: 10px;
+  border-top: 1px solid #eef3f2;
+}
+
+.detail-card dt {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.detail-card dd {
+  margin: 0;
+  font-weight: 700;
+}
+
+.detail-card--wide {
+  margin-top: 14px;
+}
+
+.saved-rooms {
+  display: grid;
+  grid-template-columns: repeat(3,1fr);
+  gap: 10px;
+}
+
+.saved-rooms > div {
+  padding: 14px;
+  border-radius: 12px;
+  background: #f7faf9;
+}
+
+.saved-rooms strong,
+.saved-rooms span {
+  display: block;
+}
+
+.saved-rooms strong {
+  margin-bottom: 6px;
+}
+
+.saved-rooms span {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.detail-total {
+  margin-top: 14px;
+}
+
+@media (max-width: 980px) {
+  .logistics-grid--priced {
+    grid-template-columns: repeat(2,1fr);
+  }
+
+  .waste-kpis {
+    grid-template-columns: repeat(2,1fr);
+  }
+}
+
+@media (max-width: 760px) {
+  .service-title-actions {
+    justify-items: start;
+  }
+
+  .order-detail-kpis,
+  .detail-grid,
+  .saved-rooms,
+  .logistics-grid--priced,
+  .waste-kpis {
+    grid-template-columns: 1fr;
+  }
+
+  .detail-card dl div {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+
+  .order-card__actions {
+    gap: 12px;
+  }
+}
