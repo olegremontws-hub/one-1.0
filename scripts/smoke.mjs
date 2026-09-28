@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import {
-  roomCalc, buildEstimateRows, calculateWasteAndLogistics, DEMO_RATES,
+  roomCalc, buildEstimateRows, calculateWasteAndLogistics, cloneOrder, validateOrder, DEMO_RATES,
 } from '../src/domain/model.js'
 
 const room={
@@ -43,3 +43,21 @@ console.log(JSON.stringify({
   logisticsTotal:Math.round(logistics.total),
   total:Math.round(workTotal+logistics.total),
 },null,2))
+
+
+const validOrder={
+  id:'1923',
+  objectType:'secondary',
+  address:'Москва, тестовый адрес',
+  rooms:[{...room,calc:geo}],
+  total:workTotal+logistics.total,
+  workTotal,
+  logistics,
+  status:'calculated',
+}
+assert.deepEqual(validateOrder(validOrder),[])
+
+const cloned=cloneOrder(validOrder,'1924')
+assert.equal(cloned.id,'1924')
+assert.equal(cloned.status,'draft')
+assert.notEqual(cloned,validOrder)
