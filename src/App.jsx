@@ -77,7 +77,7 @@ function VerifyStep({contact,method,onBack,onNext,onResend,busy,error,devCode}) 
     <div className="page-heading"><p className="eyebrow">Подтверждение</p><h1>Введите полученный код</h1><p>{method==='phone'?'Мы отправили SMS на ':'Мы отправили письмо на '}<strong>{contact}</strong></p></div>
     <div className="otp">{digits.map((digit,index)=><input key={index} ref={refs[index]} value={digit} inputMode="numeric" maxLength={1} onChange={e=>setDigit(index,e.target.value)} onKeyDown={e=>{if(e.key==='Backspace'&&!digits[index]&&index>0) refs[index-1].current?.focus()}} aria-label={`Цифра ${index+1}`}/>)}</div>
     <div className="inline-row"><span className="muted">Не получили код?</span><button className="link-button" type="button" disabled={busy} onClick={onResend}>Запросить повторно</button></div>
-    {devCode&&<p className="dev-code">Код локального OTP: <strong>{devCode}</strong></p>}
+    {devCode&&<p className="dev-code">Демо-код OTP: <strong>{devCode}</strong></p>}
     {error&&<div className="notice notice--error">{error}</div>}
     <PrimaryButton disabled={!digits.every(Boolean)||busy} onClick={()=>onNext(digits.join(''))}>{busy?'Проверяем…':'Подтвердить'}</PrimaryButton>
     {!REMOTE_ENABLED&&<p className="hint">В автономном режиме подходит любой четырёхзначный код.</p>}
