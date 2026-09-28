@@ -5,6 +5,7 @@ import {
   statusLabel, validateOrder, validateProfileField,
 } from './domain/model.js'
 import { makeBackup, downloadBackup, readBackupFile } from './lib/backup.js'
+import { REMOTE_ENABLED, loadRemoteState, saveRemoteState } from './lib/remote.js'
 import { readJSON, removeKey, writeJSON } from './lib/storage.js'
 
 const ACCOUNT_KEY='bathdream.account'
@@ -116,7 +117,7 @@ function StatusBadge({status}) {
   return <span className={`status status--${status||'draft'}`}>{statusLabel(status)}</span>
 }
 
-function OrdersDashboard({orders,onCreateOrder,onOpenOrder,onEditOrder,onDuplicate,onDelete,onExport,onImport,notice}) {
+function OrdersDashboard({orders,onCreateOrder,onOpenOrder,onEditOrder,onDuplicate,onDelete,onExport,onImport,notice,storageMode}) {
   const inputRef=useRef(null)
 
   return <section className="workspace">
@@ -126,7 +127,7 @@ function OrdersDashboard({orders,onCreateOrder,onOpenOrder,onEditOrder,onDuplica
     </div>
 
     <div className="data-toolbar">
-      <div><strong>Данные MVP</strong><span>Локальное хранилище браузера</span></div>
+      <div><strong>Данные MVP</strong><span>{storageMode==='online'?'API подключён · серверное хранилище':storageMode==='connecting'?'Подключение к API…':storageMode==='error'?'API недоступен · локальный режим':'Локальное хранилище браузера'}</span></div>
       <div className="data-toolbar__actions">
         <button type="button" onClick={onExport}>Экспорт JSON</button>
         <button type="button" onClick={()=>inputRef.current?.click()}>Импорт JSON</button>
@@ -216,11 +217,66 @@ export default function App() {
   const [selectedOrderId,setSelectedOrderId]=useState(null)
   const [editingOrderId,setEditingOrderId]=useState(null)
   const [notice,setNotice]=useState(null)
+  const [remoteStatus,setRemoteStatus]=useState(REMOTE_ENABLED?'connecting':'local')
+  const [remoteReady,setRemoteReady]=useState(!REMOTE_ENABLED)
 
   const authenticated=Boolean(profile)
   const account=profile?{profile,clientType,contact,method}:null
 
   useEffect(()=>writeJSON(ORDERS_KEY,orders),[orders])
+
+  useEffect(()=>{
+    if(!REMOTE_ENABLED) return
+    let cancelled=false
+
+    ;(async()=>{
+      try {
+        const remote=await loadRemoteState()
+        if(cancelled) return
+
+        const remoteHasData=Boolean(remote?.account?.profile)||(Array.isArray(remote?.orders)&&remote.orders.length>0)
+        if(remoteHasData){
+          const nextOrders=Array.isArray(remote.orders)?remote.orders:[]
+          setOrders(nextOrders)
+          writeJSON(ORDERS_KEY,nextOrders)
+
+          if(remote.account?.profile){
+            setProfile(remote.account.profile)
+            setClientType(remote.account.clientType||'')
+            setContact(remote.account.contact||'')
+            setMethod(remote.account.method||'phone')
+            writeJSON(ACCOUNT_KEY,remote.account)
+            setScreen('orders')
+          }
+        } else {
+          await saveRemoteState({account,orders})
+        }
+
+        if(!cancelled){
+          setRemoteStatus('online')
+          setRemoteReady(true)
+        }
+      } catch {
+        if(!cancelled){
+          setRemoteStatus('error')
+          setRemoteReady(true)
+        }
+      }
+    })()
+
+    return ()=>{cancelled=true}
+  },[])
+
+  useEffect(()=>{
+    if(!REMOTE_ENABLED||!remoteReady) return
+    const timer=setTimeout(()=>{
+      setRemoteStatus('connecting')
+      saveRemoteState({account,orders})
+        .then(()=>setRemoteStatus('online'))
+        .catch(()=>setRemoteStatus('error'))
+    },300)
+    return ()=>clearTimeout(timer)
+  },[account,orders,remoteReady])
 
   const completeRegistration=value=>{
     const nextAccount={profile:value,clientType,contact,method}
@@ -324,7 +380,7 @@ export default function App() {
     <main className={screen==='auth'||screen==='success'?'main':'main main--workspace'}>
       {screen==='auth'&&<section className="auth-card">{renderAuth()}</section>}
       {screen==='success'&&<section className="auth-card"><SuccessStep clientType={clientType} onOrders={()=>setScreen('orders')} onCreateOrder={createOrder}/></section>}
-      {screen==='orders'&&<OrdersDashboard orders={orders} onCreateOrder={createOrder} onOpenOrder={openOrder} onEditOrder={editOrder} onDuplicate={duplicateOrder} onDelete={deleteOrder} onExport={exportData} onImport={importData} notice={notice}/>}
+      {screen==='orders'&&<OrdersDashboard orders={orders} onCreateOrder={createOrder} onOpenOrder={openOrder} onEditOrder={editOrder} onDuplicate={duplicateOrder} onDelete={deleteOrder} onExport={exportData} onImport={importData} notice={notice} storageMode={remoteStatus}/>} 
       {screen==='create-order'&&<CreateOrder initialOrder={editingOrder} onCancel={()=>setScreen('orders')} onSave={saveOrder}/>}
       {screen==='order-detail'&&<OrderDetails order={selectedOrder} onBack={()=>setScreen('orders')} onEdit={()=>selectedOrder&&editOrder(selectedOrder.id)} onStatusChange={status=>selectedOrder&&changeStatus(selectedOrder.id,status)} onDuplicate={()=>selectedOrder&&duplicateOrder(selectedOrder.id)} onDelete={()=>selectedOrder&&deleteOrder(selectedOrder.id)}/>}
     </main>
