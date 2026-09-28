@@ -54,6 +54,26 @@ jobs:
       - name: Smoke test single-service production
         run: npm run test:production
 
+      - name: Build deployment Docker image
+        run: docker build -t bath-dream:ci .
+
+      - name: Smoke Docker deployment
+        run: |
+          docker run -d --name bath-dream-ci -p 8812:8787 \
+            -e OTP_SECRET=ci-otp-secret \
+            -e SESSION_SECRET=ci-session-secret \
+            -e OTP_ECHO=1 \
+            bath-dream:ci
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8812/api/health >/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:8812/api/health
+          curl -fsS http://127.0.0.1:8812/ | grep 'id="root"'
+          docker rm -f bath-dream-ci
+
       - name: Setup Pages
         id: pages
         continue-on-error: true
