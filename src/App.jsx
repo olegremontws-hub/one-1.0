@@ -6,8 +6,9 @@ import {
 } from './domain/model.js'
 import { makeBackup, downloadBackup, readBackupFile } from './lib/backup.js'
 import {
-  REMOTE_ENABLED, hasRemoteSession, loadActivePricing, loadRemoteState, logoutRemote, requestRemoteOtp,
-  saveRemoteProfile, saveRemoteState, verifyRemoteOtp,
+  REMOTE_ENABLED, createOrderDocument, hasRemoteSession, loadActivePricing, loadOrderDocuments,
+  loadRemoteState, logoutRemote, requestRemoteOtp, saveRemoteProfile, saveRemoteState,
+  updateRemoteDocumentStatus, verifyRemoteOtp,
 } from './lib/remote.js'
 import { readJSON, removeKey, writeJSON } from './lib/storage.js'
 
@@ -158,6 +159,124 @@ function OrdersDashboard({orders,onCreateOrder,onOpenOrder,onEditOrder,onDuplica
   </section>
 }
 
+
+const DOCUMENT_KIND_META={
+  quote:{label:'Коммерческое предложение',short:'КП'},
+  contract:{label:'Договор',short:'Договор'},
+  act:{label:'Акт выполненных работ',short:'Акт'},
+}
+const DOCUMENT_STATUS_LABELS={
+  draft:'Черновик',
+  issued:'Выпущен',
+  signed:'Подписан',
+  cancelled:'Отменён',
+}
+
+function DocumentsPanel({orderNumber}) {
+  const [documents,setDocuments]=useState([])
+  const [busy,setBusy]=useState('')
+  const [error,setError]=useState('')
+
+  const refresh=async()=>{
+    if(!REMOTE_ENABLED) return
+    setError('')
+    try {
+      const list=await loadOrderDocuments(orderNumber)
+      setDocuments(Array.isArray(list)?list:[])
+    } catch (err) {
+      setError(err instanceof Error?err.message:'Не удалось загрузить документы')
+    }
+  }
+
+  useEffect(()=>{refresh()},[orderNumber])
+
+  const create=async kind=>{
+    setBusy('create-'+kind);setError('')
+    try {
+      const created=await createOrderDocument(orderNumber,kind)
+      setDocuments(current=>[created,...current])
+    } catch (err) {
+      setError(err instanceof Error?err.message:'Не удалось создать документ')
+    } finally {
+      setBusy('')
+    }
+  }
+
+  const changeStatus=async(doc,status)=>{
+    setBusy(doc.id);setError('')
+    try {
+      const updated=await updateRemoteDocumentStatus(doc.id,status)
+      setDocuments(current=>current.map(item=>item.id===doc.id?updated:item))
+    } catch (err) {
+      setError(err instanceof Error?err.message:'Не удалось изменить статус документа')
+    } finally {
+      setBusy('')
+    }
+  }
+
+  if(!REMOTE_ENABLED) return <section className="detail-card detail-card--wide documents-block">
+    <p className="eyebrow">Документы</p>
+    <h2>КП · Договор · Акт</h2>
+    <p className="muted">Документы доступны в full-stack режиме с серверной БД.</p>
+  </section>
+
+  return <section className="detail-card detail-card--wide documents-block">
+    <div className="documents-head">
+      <div><p className="eyebrow">Документы</p><h2>КП · Договор · Акт</h2><p className="muted">Каждое формирование создаёт новую неизменяемую версию со снимком клиента, заказа, сметы и прайса.</p></div>
+      <button className="button button--soft" type="button" onClick={refresh}>Обновить</button>
+    </div>
+
+    <div className="document-create-row">
+      {Object.entries(DOCUMENT_KIND_META).map(([kind,meta])=><button
+        key={kind}
+        className="button button--compact"
+        type="button"
+        disabled={Boolean(busy)}
+        onClick={()=>create(kind)}
+      >{busy==='create-'+kind?'Формируем…':'+ '+meta.short}</button>)}
+    </div>
+
+    {error&&<div className="notice notice--error">{error}</div>}
+
+    {documents.length===0?<div className="document-empty">Документов по заказу пока нет.</div>:
+    <div className="document-list">{documents.map(doc=>{
+      const snapshot=doc.content||{}
+      const order=snapshot.order||{}
+      return <article className="document-card" key={doc.id}>
+        <div className="document-card__head">
+          <div><strong>{doc.title}</strong><span>{doc.number} · версия {doc.version}</span></div>
+          <span className={'document-status document-status--'+doc.status}>{DOCUMENT_STATUS_LABELS[doc.status]||doc.status}</span>
+        </div>
+
+        <dl className="document-meta">
+          <div><dt>Заказ</dt><dd>№{order.publicNumber||orderNumber}</dd></div>
+          <div><dt>Сумма</dt><dd>{money(order.totals?.total||0)} ₽</dd></div>
+          <div><dt>Создан</dt><dd>{new Date(doc.createdAt).toLocaleString('ru-RU')}</dd></div>
+          <div><dt>Прайс</dt><dd>{order.priceBook?`${order.priceBook.code} v${order.priceBook.version}`:'—'}</dd></div>
+        </dl>
+
+        <details className="document-preview">
+          <summary>Состав документа</summary>
+          <div className="document-preview__body">
+            <p><strong>Клиент:</strong> {snapshot.client?.displayName||'—'}</p>
+            <p><strong>Объект:</strong> {order.objectLabel||'—'} · {order.address||'—'}</p>
+            <p><strong>Назначение:</strong> {snapshot.purpose||'—'}</p>
+            <div className="document-preview__sections">{(snapshot.sections||[]).map(section=><span key={section}>{section}</span>)}</div>
+            <p className="document-disclaimer">{snapshot.disclaimer}</p>
+          </div>
+        </details>
+
+        <div className="document-actions">
+          {doc.status==='draft'&&<button type="button" disabled={busy===doc.id} onClick={()=>changeStatus(doc,'issued')}>Выпустить</button>}
+          {doc.status==='issued'&&<button type="button" disabled={busy===doc.id} onClick={()=>changeStatus(doc,'signed')}>Отметить подписанным</button>}
+          {(doc.status==='draft'||doc.status==='issued')&&<button className="danger-link" type="button" disabled={busy===doc.id} onClick={()=>changeStatus(doc,'cancelled')}>Отменить</button>}
+          {doc.status==='signed'&&<span className="document-signed">✓ Документ зафиксирован как подписанный</span>}
+        </div>
+      </article>
+    })}</div>}
+  </section>
+}
+
 function OrderDetails({order,onBack,onEdit,onStatusChange,onDuplicate,onDelete}) {
   if(!order) return null
   const logistics=order.logistics||{}
@@ -209,6 +328,8 @@ function OrderDetails({order,onBack,onEdit,onStatusChange,onDuplicate,onDelete})
       <div><span>Мусор и логистика</span><strong>{money(logistics.total)} ₽</strong></div>
       <div className="estimate-summary__total"><span>Итого</span><strong>{money(order.total)} ₽</strong></div>
     </div>
+
+    <DocumentsPanel orderNumber={order.id}/>
   </section>
 }
 
