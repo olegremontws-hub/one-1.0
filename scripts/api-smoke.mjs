@@ -50,6 +50,13 @@ try {
   assert.equal(health.ok,true)
   assert.equal(health.storage,'sqlite')
 
+  let pricingResponse=await api('/api/pricing/active')
+  assert.equal(pricingResponse.status,200)
+  const pricing=await pricingResponse.json()
+  assert.equal(pricing.version,1)
+  assert.equal(pricing.status,'active')
+  assert.ok(pricing.rates['DEM-FL-006']>0)
+
   let res=await api('/api/auth/otp/request',{
     method:'POST',
     body:JSON.stringify({method:'phone',contact:'+7 999 000-00-00'}),
