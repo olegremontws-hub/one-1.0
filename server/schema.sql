@@ -112,6 +112,28 @@ CREATE TABLE IF NOT EXISTS orders (
 CREATE INDEX IF NOT EXISTS idx_orders_project
 ON orders(project_id, updated_at DESC);
 
+
+CREATE TABLE IF NOT EXISTS documents (
+  id TEXT PRIMARY KEY,
+  order_id TEXT NOT NULL,
+  kind TEXT NOT NULL CHECK (kind IN ('quote','contract','act')),
+  number TEXT NOT NULL,
+  version INTEGER NOT NULL,
+  status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft','issued','signed','cancelled')),
+  title TEXT NOT NULL,
+  content_json TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  issued_at TEXT,
+  signed_at TEXT,
+  FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
+  UNIQUE(order_id, kind, version),
+  UNIQUE(number)
+);
+
+CREATE INDEX IF NOT EXISTS idx_documents_order
+ON documents(order_id, created_at DESC);
+
 INSERT INTO schema_meta(key,value)
-VALUES ('schema_version','2')
+VALUES ('schema_version','3')
 ON CONFLICT(key) DO UPDATE SET value=excluded.value;
