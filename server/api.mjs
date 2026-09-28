@@ -7,6 +7,7 @@ import {
   createOrder, deleteOrder, getOrder, listOrders, syncOrders, updateOrder,
 } from './orders.mjs'
 import { getActivePriceBook } from './pricing.mjs'
+import { createDocument, getDocument, listDocuments, updateDocumentStatus } from './documents.mjs'
 
 const PORT=Number(process.env.PORT||8787)
 const MAX_BODY=2*1024*1024
@@ -49,7 +50,7 @@ const server=http.createServer(async (req,res)=>{
     const url=new URL(req.url,'http://localhost')
 
     if(url.pathname==='/api/health'&&req.method==='GET'){
-      return json(res,200,{ok:true,service:'bath-dream-api',version:3,storage:'sqlite'})
+      return json(res,200,{ok:true,service:'bath-dream-api',version:4,storage:'sqlite'})
     }
 
     if(url.pathname==='/api/pricing/active'&&req.method==='GET'){
@@ -87,7 +88,7 @@ const server=http.createServer(async (req,res)=>{
       const auth=requireAuth(req)
       const account=getAccountShape(auth.accountId)
       return json(res,200,{
-        version:3,
+        version:4,
         account,
         orders:account.profile?listOrders(auth.accountId):[],
         updatedAt:new Date().toISOString(),
@@ -102,7 +103,7 @@ const server=http.createServer(async (req,res)=>{
       }
       const orders=syncOrders(auth.accountId,payload.orders||[])
       return json(res,200,{
-        version:3,
+        version:4,
         account:getAccountShape(auth.accountId),
         orders,
         updatedAt:new Date().toISOString(),
@@ -117,6 +118,28 @@ const server=http.createServer(async (req,res)=>{
     if(url.pathname==='/api/orders'&&req.method==='POST'){
       const auth=requireAuth(req)
       return json(res,201,createOrder(auth.accountId,await body(req)))
+    }
+
+    const orderDocumentsMatch=url.pathname.match(/^\/api\/orders\/([^/]+)\/documents$/)
+    if(orderDocumentsMatch){
+      const auth=requireAuth(req)
+      const number=decodeURIComponent(orderDocumentsMatch[1])
+      if(req.method==='GET') return json(res,200,listDocuments(auth.accountId,number))
+      if(req.method==='POST'){
+        const payload=await body(req)
+        return json(res,201,createDocument(auth.accountId,number,payload.kind))
+      }
+    }
+
+    const documentMatch=url.pathname.match(/^\/api\/documents\/([^/]+)$/)
+    if(documentMatch){
+      const auth=requireAuth(req)
+      const id=decodeURIComponent(documentMatch[1])
+      if(req.method==='GET') return json(res,200,getDocument(auth.accountId,id))
+      if(req.method==='PATCH'){
+        const payload=await body(req)
+        return json(res,200,updateDocumentStatus(auth.accountId,id,payload.status))
+      }
     }
 
     const match=url.pathname.match(/^\/api\/orders\/([^/]+)$/)
@@ -138,5 +161,5 @@ const server=http.createServer(async (req,res)=>{
 })
 
 server.listen(PORT,()=>{
-  console.log(`Bath Dream API v3: http://localhost:${PORT}`)
+  console.log(`Bath Dream API v4: http://localhost:${PORT}`)
 })
