@@ -134,6 +134,56 @@ try {
   const updated=await res.json()
   assert.equal(updated.status,'review')
 
+  res=await api('/api/orders/9001/documents',{token})
+  assert.equal(res.status,200)
+  assert.deepEqual(await res.json(),[])
+
+  res=await api('/api/orders/9001/documents',{
+    token,
+    method:'POST',
+    body:JSON.stringify({kind:'quote'}),
+  })
+  assert.equal(res.status,201)
+  const quote=await res.json()
+  assert.equal(quote.kind,'quote')
+  assert.equal(quote.version,1)
+  assert.equal(quote.status,'draft')
+  assert.equal(quote.content.order.publicNumber,'9001')
+  assert.equal(quote.content.order.totals.total,12345)
+
+  res=await api(`/api/documents/${quote.id}`,{
+    token,
+    method:'PATCH',
+    body:JSON.stringify({status:'issued'}),
+  })
+  assert.equal(res.status,200)
+  const issued=await res.json()
+  assert.equal(issued.status,'issued')
+  assert.ok(issued.issuedAt)
+
+  res=await api(`/api/documents/${quote.id}`,{
+    token,
+    method:'PATCH',
+    body:JSON.stringify({status:'signed'}),
+  })
+  assert.equal(res.status,200)
+  const signed=await res.json()
+  assert.equal(signed.status,'signed')
+  assert.ok(signed.signedAt)
+
+  res=await api('/api/orders/9001/documents',{
+    token,
+    method:'POST',
+    body:JSON.stringify({kind:'quote'}),
+  })
+  assert.equal(res.status,201)
+  const quoteV2=await res.json()
+  assert.equal(quoteV2.version,2)
+
+  res=await api('/api/orders/9001/documents',{token})
+  const documents=await res.json()
+  assert.equal(documents.length,2)
+
   res=await api('/api/orders/9001',{token,method:'DELETE'})
   assert.equal(res.status,200)
 
