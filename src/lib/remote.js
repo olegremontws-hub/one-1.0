@@ -97,3 +97,26 @@ export function checkRemoteHealth() {
 export function loadActivePricing() {
   return request('/api/pricing/active',{auth:false})
 }
+
+
+export function loadOrderDocuments(orderNumber) {
+  return request(`/api/orders/${encodeURIComponent(orderNumber)}/documents`)
+}
+
+export function createOrderDocument(orderNumber,kind) {
+  return request(`/api/orders/${encodeURIComponent(orderNumber)}/documents`,{
+    method:'POST',
+    body:JSON.stringify({kind}),
+  })
+}
+
+export function loadRemoteDocument(id) {
+  return request(`/api/documents/${encodeURIComponent(id)}`)
+}
+
+export function updateRemoteDocumentStatus(id,status) {
+  return request(`/api/documents/${encodeURIComponent(id)}`,{
+    method:'PATCH',
+    body:JSON.stringify({status}),
+  })
+}
