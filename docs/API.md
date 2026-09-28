@@ -101,6 +101,6 @@ SQLite-схема находится в `server/schema.sql`.
 - `SESSION_TTL_MS` — срок сессии, по умолчанию 30 дней.
 - `OTP_SECRET` — секрет хеширования OTP.
 - `SESSION_SECRET` — секрет хеширования токенов.
-- `OTP_ECHO=1|0` — принудительно показать/скрыть dev-код.
+- `OTP_ECHO=1|0` — принудительно показать/скрыть dev-код.\n- `OTP_WEBHOOK_URL` — внешний endpoint доставки OTP.\n- `OTP_WEBHOOK_TOKEN` — необязательный bearer-token для delivery webhook.
 
-Для реального публичного запуска потребуется подключить SMS/e-mail delivery provider и задать собственные секреты.
+При `NODE_ENV=production` `OTP_SECRET` и `SESSION_SECRET` обязательны. Если `OTP_ECHO=0`, сервер требует настроенный `OTP_WEBHOOK_URL`; иначе запрос OTP завершается ошибкой 503 и не создаёт ложного «отправленного» кода.
