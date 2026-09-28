@@ -34,6 +34,16 @@ export const OBJECT_TYPES = [
 
 export const ROOM_TYPES = ['Ванная','Санузел','Кухня','Гостиная','Спальня','Прихожая','Балкон / лоджия','Другое']
 
+export const ORDER_STATUSES = [
+  { id:'draft', label:'Черновик' },
+  { id:'calculated', label:'Расчёт готов' },
+  { id:'review', label:'На согласовании' },
+  { id:'contract', label:'Договор' },
+  { id:'work', label:'В работе' },
+  { id:'acceptance', label:'Приёмка' },
+  { id:'done', label:'Завершён' },
+]
+
 export const DEMO_CATALOG = [
   { id:'floor', title:'Пол', icon:'▱', groups:[{ title:'Покрытия и основание', items:[
     ['DEM-FL-001','Ламинат','м²'],['DEM-FL-002','Линолеум','м²'],['DEM-FL-004','Паркет','м²'],
@@ -268,5 +278,36 @@ export function calculateWasteAndLogistics(rows,{floor=1,lift='yes',rates=LOGIST
     volume,weight,bags,bulky,
     packaging,carry,loading,transport:transport.price,transportLabel:transport.label,disposal,total,
     byType:Object.values(byType).sort((a,b)=>b.volume-a.volume),
+  }
+}
+
+
+export function validateOrder(order) {
+  const errors=[]
+  if(!order?.objectType) errors.push('Не выбран тип объекта')
+  if(!String(order?.address||'').trim()) errors.push('Не указан адрес объекта')
+  if(!Array.isArray(order?.rooms) || order.rooms.length===0) errors.push('Не добавлены помещения')
+  ;(order?.rooms||[]).forEach((room,index)=>{
+    const calc=roomCalc(room)
+    if(!room.type) errors.push(`Помещение ${index+1}: не выбран тип`)
+    if(calc.floor<=0) errors.push(`Помещение ${index+1}: площадь должна быть больше 0`)
+    if(toNum(room.height)<=0) errors.push(`Помещение ${index+1}: высота должна быть больше 0`)
+  })
+  if(toNum(order?.total)<0) errors.push('Итог заказа не может быть отрицательным')
+  return errors
+}
+
+export function statusLabel(status) {
+  return ORDER_STATUSES.find(item=>item.id===status)?.label || 'Черновик'
+}
+
+export function cloneOrder(order,newId) {
+  const now=new Date().toISOString()
+  return {
+    ...JSON.parse(JSON.stringify(order)),
+    id:String(newId),
+    status:'draft',
+    createdAt:now,
+    updatedAt:now,
   }
 }
