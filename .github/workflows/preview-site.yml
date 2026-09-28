@@ -1,0 +1,48 @@
+name: Publish clickable preview
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: clickable-preview
+  cancel-in-progress: true
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.14.0
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build portable preview
+        run: npm run build -- --base=./
+
+      - name: Pack site
+        run: |
+          touch dist/.nojekyll
+          tar -czf /tmp/bath-dream-preview.tgz -C dist .
+
+      - name: Publish preview-site branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout --orphan preview-site
+          git rm -rf . || true
+          find . -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
+          tar -xzf /tmp/bath-dream-preview.tgz
+          git add -A
+          git commit -m "preview: Bath Dream clickable build"
+          git push --force origin preview-site
