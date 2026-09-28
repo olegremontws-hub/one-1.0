@@ -1,4 +1,7 @@
 import http from 'node:http'
+import { readFile, stat } from 'node:fs/promises'
+import { extname, join, normalize } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import './db.mjs'
 import {
   authenticate, getAccountShape, requestOtp, revokeSession, upsertProfile, verifyOtp,
@@ -14,15 +17,43 @@ import { getSchedule, initializeSchedule, requestAcceptance, respondAcceptance, 
 
 const PORT=Number(process.env.PORT||8787)
 const MAX_BODY=2*1024*1024
+const STATIC_ROOT=process.env.STATIC_DIR||fileURLToPath(new URL('../dist/',import.meta.url))
+const SERVE_STATIC=String(process.env.SERVE_STATIC??(process.env.NODE_ENV==='production'?'1':'0'))==='1'
+const ALLOWED_ORIGIN=String(process.env.CORS_ORIGIN||'*')
+
+const MIME_TYPES={
+  '.html':'text/html; charset=utf-8',
+  '.js':'text/javascript; charset=utf-8',
+  '.css':'text/css; charset=utf-8',
+  '.json':'application/json; charset=utf-8',
+  '.svg':'image/svg+xml',
+  '.png':'image/png',
+  '.jpg':'image/jpeg',
+  '.jpeg':'image/jpeg',
+  '.webp':'image/webp',
+  '.ico':'image/x-icon',
+  '.woff':'font/woff',
+  '.woff2':'font/woff2',
+}
+
+function commonHeaders(extra={}) {
+  return {
+    'x-content-type-options':'nosniff',
+    'x-frame-options':'SAMEORIGIN',
+    'referrer-policy':'strict-origin-when-cross-origin',
+    'permissions-policy':'camera=(), microphone=(), geolocation=()',
+    ...extra,
+  }
+}
 
 function json(res,status,data) {
-  res.writeHead(status,{
+  res.writeHead(status,commonHeaders({
     'content-type':'application/json; charset=utf-8',
-    'access-control-allow-origin':'*',
+    'access-control-allow-origin':ALLOWED_ORIGIN,
     'access-control-allow-methods':'GET,POST,PUT,PATCH,DELETE,OPTIONS',
     'access-control-allow-headers':'content-type,authorization',
     'cache-control':'no-store',
-  })
+  }))
   if(status===204) return res.end()
   res.end(JSON.stringify(data))
 }
@@ -40,6 +71,38 @@ async function body(req) {
     return JSON.parse(Buffer.concat(chunks).toString('utf8'))
   } catch {
     throw Object.assign(new Error('Некорректный JSON'),{status:400})
+  }
+}
+
+
+async function serveStatic(pathname,res,method='GET') {
+  if(!SERVE_STATIC||!['GET','HEAD'].includes(method)) return false
+
+  const decoded=decodeURIComponent(pathname)
+  const clean=normalize(decoded).replace(/^([/\\])+/, '')
+  if(clean.includes('..')) return false
+
+  let filePath=join(STATIC_ROOT,clean||'index.html')
+  try {
+    const info=await stat(filePath)
+    if(info.isDirectory()) filePath=join(filePath,'index.html')
+  } catch {
+    filePath=join(STATIC_ROOT,'index.html')
+  }
+
+  try {
+    const data=await readFile(filePath)
+    const ext=extname(filePath).toLowerCase()
+    const immutable=clean.startsWith('assets/')
+    res.writeHead(200,commonHeaders({
+      'content-type':MIME_TYPES[ext]||'application/octet-stream',
+      'cache-control':immutable?'public, max-age=31536000, immutable':'no-cache',
+    }))
+    if(method==='HEAD') return res.end(),true
+    res.end(data)
+    return true
+  } catch {
+    return false
   }
 }
 
@@ -235,6 +298,7 @@ const server=http.createServer(async (req,res)=>{
       if(req.method==='DELETE') return json(res,200,deleteOrder(auth.accountId,number))
     }
 
+    if(!url.pathname.startsWith('/api/')&&await serveStatic(url.pathname,res,req.method)) return
     return json(res,404,{error:'Маршрут не найден'})
   } catch (error) {
     const status=Number(error?.status)||500
@@ -244,5 +308,5 @@ const server=http.createServer(async (req,res)=>{
 })
 
 server.listen(PORT,()=>{
-  console.log(`Bath Dream API v7: http://localhost:${PORT}`)
+  console.log(`Bath Dream v0.9 server: http://localhost:${PORT}`)
 })
