@@ -134,6 +134,46 @@ try {
   const updated=await res.json()
   assert.equal(updated.status,'review')
 
+  res=await api('/api/orders/9001/history',{token})
+  assert.equal(res.status,200)
+  let history=await res.json()
+  assert.ok(history.revisions.length>=2)
+  assert.ok(history.events.some(item=>item.eventType==='order.updated'))
+
+  res=await api('/api/orders/9001/approvals',{
+    token,
+    method:'POST',
+  })
+  assert.equal(res.status,201)
+  const approval=await res.json()
+  assert.equal(approval.status,'pending')
+  assert.ok(approval.revisionVersion>=1)
+  assert.equal(approval.snapshot.total,12345)
+
+  res=await api('/api/orders/9001/history',{token})
+  history=await res.json()
+  assert.ok(history.approvals.some(item=>item.id===approval.id&&item.status==='pending'))
+  assert.ok(history.events.some(item=>item.eventType==='approval.requested'))
+
+  res=await api('/api/approvals/'+approval.id,{
+    token,
+    method:'PATCH',
+    body:JSON.stringify({status:'approved',note:'Смета согласована'}),
+  })
+  assert.equal(res.status,200)
+  const approved=await res.json()
+  assert.equal(approved.status,'approved')
+  assert.equal(approved.note,'Смета согласована')
+  assert.ok(approved.respondedAt)
+
+  res=await api('/api/orders/9001',{token})
+  const approvedOrder=await res.json()
+  assert.equal(approvedOrder.status,'contract')
+
+  res=await api('/api/orders/9001/history',{token})
+  history=await res.json()
+  assert.ok(history.events.some(item=>item.eventType==='approval.approved'))
+
   res=await api('/api/orders/9001/documents',{token})
   assert.equal(res.status,200)
   assert.deepEqual(await res.json(),[])
