@@ -1420,3 +1420,128 @@ h2 { margin: 0; color: var(--ink); letter-spacing: -.025em; }
     justify-content:space-between;
   }
 }
+
+
+.detail-head-actions {
+  display:flex;
+  gap:10px;
+  align-items:center;
+}
+.button--soft {
+  width:auto;
+  min-height:48px;
+  padding:0 18px;
+  border:1px solid var(--line);
+  background:#fff;
+  color:var(--ink);
+}
+.button--soft:hover {
+  border-color:var(--accent-dark);
+  background:var(--accent-soft);
+}
+
+.print-estimate h2 {
+  margin-bottom:16px;
+}
+
+.detail-estimate {
+  display:grid;
+  overflow:hidden;
+  border:1px solid var(--line);
+  border-radius:14px;
+}
+
+.detail-estimate__row {
+  display:grid;
+  grid-template-columns:minmax(220px,1.5fr) 1fr 130px 120px 130px;
+  align-items:center;
+  gap:12px;
+  min-height:58px;
+  padding:10px 14px;
+  border-bottom:1px solid #eef3f2;
+  font-size:12px;
+}
+
+.detail-estimate__row:last-child {
+  border-bottom:0;
+}
+
+.detail-estimate__row--head {
+  min-height:42px;
+  background:#f7faf9;
+  color:var(--muted);
+  font-size:10px;
+  font-weight:800;
+}
+
+.detail-estimate__row > div > * {
+  display:block;
+}
+
+.detail-estimate__row > div small {
+  margin-top:3px;
+  color:var(--muted);
+  font-size:9px;
+}
+
+@media (max-width:820px) {
+  .detail-head-actions {
+    width:100%;
+  }
+  .detail-head-actions .button {
+    flex:1;
+  }
+  .detail-estimate {
+    border:0;
+    gap:10px;
+  }
+  .detail-estimate__row--head {
+    display:none;
+  }
+  .detail-estimate__row {
+    grid-template-columns:1fr 1fr;
+    gap:8px;
+    padding:14px;
+    border:1px solid var(--line);
+    border-radius:12px;
+  }
+  .detail-estimate__row > div:first-child {
+    grid-column:1/-1;
+  }
+  .detail-estimate__row > strong:last-child {
+    text-align:right;
+  }
+}
+
+@media print {
+  body {
+    background:#fff !important;
+  }
+  .topbar,
+  .footer,
+  .back-link,
+  .detail-head-actions,
+  .order-control-bar {
+    display:none !important;
+  }
+  .main,
+  .main--workspace,
+  .order-details {
+    width:100% !important;
+    min-height:0 !important;
+    padding:0 !important;
+    margin:0 !important;
+  }
+  .workspace__head {
+    margin-bottom:18px;
+  }
+  .detail-card,
+  .order-detail-kpis > div,
+  .estimate-summary > div {
+    box-shadow:none !important;
+    break-inside:avoid;
+  }
+  .detail-estimate__row {
+    font-size:10px;
+  }
+}
