@@ -241,7 +241,7 @@ function transportFor(volume,rates) {
   return {price:count*maxTier.price,label:`${count} × контейнер до ${maxTier.max} м³`}
 }
 
-export function calculateWasteAndLogistics(rows,{floor=1,lift='yes',rates=LOGISTICS_RATES}={}) {
+export function calculateWasteAndLogistics(rows,{floor=1,lift='yes',rates=LOGISTICS_RATES,wasteRules=WASTE_RULES}={}) {
   let volume=0
   let weight=0
   let bags=0
@@ -249,7 +249,7 @@ export function calculateWasteAndLogistics(rows,{floor=1,lift='yes',rates=LOGIST
   const byType={}
 
   rows.forEach(row=>{
-    const rule=WASTE_RULES[row.code] || {type:'Смешанные отходы',m3:.01,kg:5,bag:true}
+    const rule=wasteRules[row.code] || {type:'Смешанные отходы',m3:.01,kg:5,bag:true}
     const rowVolume=row.quantity*rule.m3
     const rowWeight=row.quantity*rule.kg
     volume+=rowVolume
