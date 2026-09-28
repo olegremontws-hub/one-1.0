@@ -1729,3 +1729,131 @@ h2 { margin: 0; color: var(--ink); letter-spacing: -.025em; }
     display: grid;
   }
 }
+
+
+.payments-block {
+  margin-top: 22px;
+}
+.payments-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  align-items: flex-start;
+}
+.payments-head h2 {
+  margin: 4px 0 6px;
+}
+.payment-kpis {
+  display: grid;
+  grid-template-columns: repeat(4,minmax(0,1fr));
+  gap: 10px;
+  margin: 18px 0;
+}
+.payment-kpis > div {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 14px;
+  display: grid;
+  gap: 4px;
+}
+.payment-kpis span {
+  color: var(--muted);
+  font-size: 11px;
+}
+.payment-kpis strong {
+  font-size: 17px;
+}
+.payment-create {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr 1fr auto;
+  gap: 10px;
+  align-items: end;
+  margin: 0 0 18px;
+}
+.payment-create__button {
+  min-height: 44px;
+  margin-bottom: 0;
+}
+.payment-list {
+  display: grid;
+  gap: 10px;
+}
+.payment-row {
+  display: grid;
+  grid-template-columns: minmax(180px,1.5fr) 140px 130px minmax(210px,1fr);
+  gap: 14px;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 14px 16px;
+}
+.payment-row > div:first-child {
+  display: grid;
+  gap: 3px;
+}
+.payment-row > div:first-child span {
+  color: var(--muted);
+  font-size: 11px;
+}
+.payment-status {
+  display: inline-flex;
+  justify-content: center;
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  background: #f1f3f4;
+  color: #4d5558;
+}
+.payment-status--paid {
+  background: #e8f6ec;
+  color: #25723b;
+}
+.payment-status--cancelled {
+  background: #fff0f0;
+  color: #a63b3b;
+}
+.payment-row__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+}
+.payment-row__actions > button:not(.danger-link) {
+  border: 1px solid var(--line);
+  background: #fff;
+  border-radius: 9px;
+  padding: 8px 10px;
+  cursor: pointer;
+}
+.payment-row__actions button:disabled {
+  opacity: .55;
+  cursor: default;
+}
+
+@media (max-width: 900px) {
+  .payment-kpis {
+    grid-template-columns: repeat(2,minmax(0,1fr));
+  }
+  .payment-create {
+    grid-template-columns: 1fr 1fr;
+  }
+  .payment-row {
+    grid-template-columns: 1fr auto;
+  }
+  .payment-row__actions {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 600px) {
+  .payments-head {
+    display: grid;
+  }
+  .payment-kpis,
+  .payment-create,
+  .payment-row {
+    grid-template-columns: 1fr;
+  }
+}
