@@ -2,7 +2,7 @@ import http from 'node:http'
 import { readFile, stat } from 'node:fs/promises'
 import { extname, join, normalize } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import './db.mjs'
+import { db } from './db.mjs'
 import {
   authenticate, getAccountShape, requestOtp, revokeSession, upsertProfile, verifyOtp,
 } from './auth.mjs'
@@ -310,3 +310,25 @@ const server=http.createServer(async (req,res)=>{
 server.listen(PORT,()=>{
   console.log(`Bath Dream v0.9 server: http://localhost:${PORT}`)
 })
+
+let shuttingDown=false
+function shutdown(signal){
+  if(shuttingDown) return
+  shuttingDown=true
+  console.log(`Bath Dream server received ${signal}, shutting down`)
+
+  const hardStop=setTimeout(()=>{
+    try { db.close() } catch {}
+    process.exit(1)
+  },10000)
+  hardStop.unref()
+
+  server.close(()=>{
+    clearTimeout(hardStop)
+    try { db.close() } catch {}
+    process.exit(0)
+  })
+}
+
+process.on('SIGTERM',()=>shutdown('SIGTERM'))
+process.on('SIGINT',()=>shutdown('SIGINT'))
