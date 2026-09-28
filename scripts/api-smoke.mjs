@@ -272,6 +272,55 @@ try {
   })
   assert.equal(res.status,200)
 
+  res=await api('/api/orders/9001/schedule',{token})
+  assert.equal(res.status,200)
+  let schedule=await res.json()
+  assert.equal(schedule.stages.length,0)
+
+  res=await api('/api/orders/9001/schedule',{
+    token,
+    method:'POST',
+    body:JSON.stringify({plannedStart:'2026-10-02'}),
+  })
+  assert.equal(res.status,201)
+  schedule=await res.json()
+  assert.equal(schedule.stages.length,5)
+  assert.equal(schedule.summary.progress,0)
+
+  for(const stage of schedule.stages){
+    res=await api('/api/work-stages/'+stage.id,{
+      token,
+      method:'PATCH',
+      body:JSON.stringify({status:'done'}),
+    })
+    assert.equal(res.status,200)
+  }
+
+  res=await api('/api/orders/9001/schedule',{token})
+  schedule=await res.json()
+  assert.equal(schedule.summary.progress,100)
+  assert.equal(schedule.summary.completedStages,5)
+  assert.equal(schedule.summary.canRequestAcceptance,true)
+
+  res=await api('/api/orders/9001/acceptance',{
+    token,
+    method:'POST',
+    body:JSON.stringify({note:'Готово к приёмке'}),
+  })
+  assert.equal(res.status,201)
+  schedule=await res.json()
+  assert.equal(schedule.acceptance.status,'pending')
+
+  res=await api('/api/acceptance/'+schedule.acceptance.id,{
+    token,
+    method:'PATCH',
+    body:JSON.stringify({status:'accepted',note:'Работы приняты'}),
+  })
+  assert.equal(res.status,200)
+  schedule=await res.json()
+  assert.equal(schedule.acceptance.status,'accepted')
+  assert.equal(schedule.summary.orderStatus,'done')
+
   res=await api('/api/orders/9001',{token,method:'DELETE'})
   assert.equal(res.status,200)
 
