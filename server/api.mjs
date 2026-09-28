@@ -9,6 +9,7 @@ import {
 import { getActivePriceBook } from './pricing.mjs'
 import { createDocument, getDocument, listDocuments, updateDocumentStatus } from './documents.mjs'
 import { createPayment, listPayments, updatePaymentStatus } from './payments.mjs'
+import { getOrderHistory, requestApproval, respondApproval } from './audit.mjs'
 
 const PORT=Number(process.env.PORT||8787)
 const MAX_BODY=2*1024*1024
@@ -51,7 +52,7 @@ const server=http.createServer(async (req,res)=>{
     const url=new URL(req.url,'http://localhost')
 
     if(url.pathname==='/api/health'&&req.method==='GET'){
-      return json(res,200,{ok:true,service:'bath-dream-api',version:5,storage:'sqlite'})
+      return json(res,200,{ok:true,service:'bath-dream-api',version:6,storage:'sqlite'})
     }
 
     if(url.pathname==='/api/pricing/active'&&req.method==='GET'){
@@ -89,7 +90,7 @@ const server=http.createServer(async (req,res)=>{
       const auth=requireAuth(req)
       const account=getAccountShape(auth.accountId)
       return json(res,200,{
-        version:5,
+        version:6,
         account,
         orders:account.profile?listOrders(auth.accountId):[],
         updatedAt:new Date().toISOString(),
@@ -104,7 +105,7 @@ const server=http.createServer(async (req,res)=>{
       }
       const orders=syncOrders(auth.accountId,payload.orders||[])
       return json(res,200,{
-        version:5,
+        version:6,
         account:getAccountShape(auth.accountId),
         orders,
         updatedAt:new Date().toISOString(),
@@ -119,6 +120,30 @@ const server=http.createServer(async (req,res)=>{
     if(url.pathname==='/api/orders'&&req.method==='POST'){
       const auth=requireAuth(req)
       return json(res,201,createOrder(auth.accountId,await body(req)))
+    }
+
+    const orderHistoryMatch=url.pathname.match(/^\/api\/orders\/([^/]+)\/history$/)
+    if(orderHistoryMatch){
+      const auth=requireAuth(req)
+      const number=decodeURIComponent(orderHistoryMatch[1])
+      if(req.method==='GET') return json(res,200,getOrderHistory(auth.accountId,number))
+    }
+
+    const orderApprovalMatch=url.pathname.match(/^\/api\/orders\/([^/]+)\/approvals$/)
+    if(orderApprovalMatch){
+      const auth=requireAuth(req)
+      const number=decodeURIComponent(orderApprovalMatch[1])
+      if(req.method==='POST') return json(res,201,requestApproval(auth.accountId,number))
+    }
+
+    const approvalMatch=url.pathname.match(/^\/api\/approvals\/([^/]+)$/)
+    if(approvalMatch){
+      const auth=requireAuth(req)
+      const id=decodeURIComponent(approvalMatch[1])
+      if(req.method==='PATCH'){
+        const payload=await body(req)
+        return json(res,200,respondApproval(auth.accountId,id,payload.status,payload.note||''))
+      }
     }
 
     const orderPaymentsMatch=url.pathname.match(/^\/api\/orders\/([^/]+)\/payments$/)
@@ -183,5 +208,5 @@ const server=http.createServer(async (req,res)=>{
 })
 
 server.listen(PORT,()=>{
-  console.log(`Bath Dream API v5: http://localhost:${PORT}`)
+  console.log(`Bath Dream API v6: http://localhost:${PORT}`)
 })
