@@ -1545,3 +1545,20 @@ h2 { margin: 0; color: var(--ink); letter-spacing: -.025em; }
     font-size:10px;
   }
 }
+
+
+.dev-code {
+  margin: 2px 0 14px;
+  padding: 12px 14px;
+  border: 1px dashed var(--accent);
+  border-radius: 12px;
+  background: var(--accent-soft);
+  color: var(--accent-dark);
+  font-size: 12px;
+  text-align: center;
+}
+.dev-code strong {
+  margin-left: 6px;
+  font-size: 18px;
+  letter-spacing: .16em;
+}
