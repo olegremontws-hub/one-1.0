@@ -1,4 +1,4 @@
-# Bath Dream API v3
+# Bath Dream API v4
 
 Серверный MVP клиентского контура. Runtime: **Node.js 22.14+**, хранилище: **SQLite**.
 
@@ -67,6 +67,17 @@ VITE_API_URL=http://localhost:8787
 `GET /api/me` — текущий аккаунт.
 
 `POST /api/logout` — отозвать текущую сессию.
+
+## Документы
+
+Все методы требуют bearer-сессию.
+
+- `GET /api/orders/:number/documents` — список документов заказа.
+- `POST /api/orders/:number/documents` — создать новую версию документа; body: `{"kind":"quote|contract|act"}`.
+- `GET /api/documents/:id` — получить документ и его снимок данных.
+- `PATCH /api/documents/:id` — изменить статус; body: `{"status":"draft|issued|signed|cancelled"}`.
+
+Документ хранит снимок данных на момент формирования. Изменение заказа или активного прайса не переписывает уже созданную версию документа.
 
 ## Заказы
 
