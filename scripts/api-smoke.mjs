@@ -184,6 +184,54 @@ try {
   const documents=await res.json()
   assert.equal(documents.length,2)
 
+  res=await api('/api/orders/9001/payments',{token})
+  assert.equal(res.status,200)
+  let paymentState=await res.json()
+  assert.equal(paymentState.items.length,0)
+  assert.equal(paymentState.summary.remaining,12345)
+
+  res=await api('/api/orders/9001/payments',{
+    token,
+    method:'POST',
+    body:JSON.stringify({kind:'advance',amount:5000,dueAt:'2026-10-01'}),
+  })
+  assert.equal(res.status,201)
+  const advance=await res.json()
+  assert.equal(advance.status,'planned')
+  assert.equal(advance.amount,5000)
+
+  res=await api('/api/payments/'+advance.id,{
+    token,
+    method:'PATCH',
+    body:JSON.stringify({status:'paid'}),
+  })
+  assert.equal(res.status,200)
+  const paidAdvance=await res.json()
+  assert.equal(paidAdvance.status,'paid')
+  assert.ok(paidAdvance.paidAt)
+
+  res=await api('/api/orders/9001/payments',{token})
+  paymentState=await res.json()
+  assert.equal(paymentState.summary.paid,5000)
+  assert.equal(paymentState.summary.remaining,7345)
+  assert.equal(paymentState.summary.unplanned,7345)
+
+  res=await api('/api/orders/9001/payments',{
+    token,
+    method:'POST',
+    body:JSON.stringify({kind:'final',amount:7345}),
+  })
+  assert.equal(res.status,201)
+  const finalPayment=await res.json()
+  assert.equal(finalPayment.status,'planned')
+
+  res=await api('/api/payments/'+finalPayment.id,{
+    token,
+    method:'PATCH',
+    body:JSON.stringify({status:'cancelled'}),
+  })
+  assert.equal(res.status,200)
+
   res=await api('/api/orders/9001',{token,method:'DELETE'})
   assert.equal(res.status,200)
 
