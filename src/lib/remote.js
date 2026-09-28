@@ -139,3 +139,21 @@ export function updateRemotePaymentStatus(id,status) {
     body:JSON.stringify({status}),
   })
 }
+
+
+export function loadOrderHistory(orderNumber) {
+  return request(`/api/orders/${encodeURIComponent(orderNumber)}/history`)
+}
+
+export function requestOrderApproval(orderNumber) {
+  return request(`/api/orders/${encodeURIComponent(orderNumber)}/approvals`,{
+    method:'POST',
+  })
+}
+
+export function respondOrderApproval(id,status,note='') {
+  return request(`/api/approvals/${encodeURIComponent(id)}`,{
+    method:'PATCH',
+    body:JSON.stringify({status,note}),
+  })
+}
