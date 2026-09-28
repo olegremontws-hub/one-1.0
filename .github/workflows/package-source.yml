@@ -1,0 +1,28 @@
+name: Package Bath Dream source
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - ".github/workflows/package-source.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Create source archive
+        run: |
+          zip -r Bath-Dream-v0.9-source.zip .             -x ".git/*"                "node_modules/*"                "dist/*"                "dist-production/*"                "server/*.sqlite"                "server/*.sqlite-wal"                "server/*.sqlite-shm"                ".env"                ".env.local"                ".env.production"                ".env.development"
+
+      - name: Upload source archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: Bath-Dream-v0.9-source
+          path: Bath-Dream-v0.9-source.zip
+          retention-days: 7
