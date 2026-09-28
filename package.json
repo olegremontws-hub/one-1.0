@@ -12,7 +12,8 @@
     "test:api": "node scripts/api-smoke.mjs",
     "dev:full": "node scripts/dev-full.mjs",
     "test:otp": "node scripts/otp-webhook-smoke.mjs",
-    "pricing": "node scripts/pricing-cli.mjs"
+    "pricing": "node scripts/pricing-cli.mjs",
+    "test:pricing": "node scripts/pricing-smoke.mjs"
   },
   "dependencies": {
     "react": "^18.3.1",
