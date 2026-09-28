@@ -134,6 +134,25 @@ CREATE TABLE IF NOT EXISTS documents (
 CREATE INDEX IF NOT EXISTS idx_documents_order
 ON documents(order_id, created_at DESC);
 
+
+CREATE TABLE IF NOT EXISTS payments (
+  id TEXT PRIMARY KEY,
+  order_id TEXT NOT NULL,
+  kind TEXT NOT NULL CHECK (kind IN ('advance','final','other')),
+  status TEXT NOT NULL DEFAULT 'planned' CHECK (status IN ('planned','paid','cancelled')),
+  amount REAL NOT NULL CHECK (amount > 0),
+  currency TEXT NOT NULL DEFAULT 'RUB',
+  due_at TEXT,
+  paid_at TEXT,
+  note TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_payments_order
+ON payments(order_id, created_at DESC);
+
 INSERT INTO schema_meta(key,value)
-VALUES ('schema_version','3')
+VALUES ('schema_version','4')
 ON CONFLICT(key) DO UPDATE SET value=excluded.value;
