@@ -20,6 +20,83 @@ const OBJECT_TYPES = [
 
 const ROOM_TYPES = ['Ванная','Санузел','Кухня','Гостиная','Спальня','Прихожая','Балкон / лоджия','Другое']
 
+const DEMO_CATALOG = [
+  {
+    id: 'floor', title: 'Пол', icon: '▱',
+    groups: [{ title: 'Покрытия и основание', items: [
+      ['DEM-FL-001','Ламинат','м²'],['DEM-FL-002','Линолеум','м²'],['DEM-FL-004','Паркет','м²'],
+      ['DEM-FL-006','Плитка','м²'],['DEM-FL-007','Керамогранит','м²'],['DEM-FL-008','Стяжка','м²'],
+      ['DEM-FL-012','Плинтус','м.п.'],
+    ]}],
+  },
+  {
+    id: 'walls', title: 'Стены', icon: '▥',
+    groups: [{ title: 'Отделка и конструкции', items: [
+      ['DEM-WL-001','Обои','м²'],['DEM-WL-002','Штукатурка','м²'],['DEM-WL-003','Плитка','м²'],
+      ['DEM-WL-005','Перегородка ГКЛ','м²'],['DEM-WL-006','Газоблок / ПГП','м²'],
+      ['DEM-WL-008','Кирпичная перегородка','м²'],['DEM-WL-010','Железобетонная перегородка','м²'],
+    ]}],
+  },
+  {
+    id: 'ceiling', title: 'Потолок', icon: '═',
+    groups: [{ title: 'Потолочные конструкции', items: [
+      ['DEM-CL-001','Натяжной потолок','м²'],['DEM-CL-002','Потолок ГКЛ','м²'],
+      ['DEM-CL-003','Armstrong','м²'],['DEM-CL-004','Штукатурка потолка','м²'],['DEM-CL-005','Краска / шпаклёвка','м²'],
+    ]}],
+  },
+  {
+    id: 'electric', title: 'Электрика', icon: 'ϟ',
+    groups: [
+      { title: 'Освещение', items: [
+        ['DEM-EL-LGT-001','Лампа / лампочка','шт'],['DEM-EL-LGT-002','Точечный светильник','шт'],
+        ['DEM-EL-LGT-003','Люстра','шт'],['DEM-EL-LGT-004','Бра','шт'],['DEM-EL-LGT-005','LED-лента','м.п.'],
+        ['DEM-EL-LGT-006','LED-профиль','м.п.'],['DEM-EL-LGT-007','Трек','м.п.'],
+        ['DEM-EL-LGT-008','Трековый светильник','шт'],['DEM-EL-LGT-009','Драйвер / трансформатор','шт'],
+        ['DEM-EL-LGT-010','Датчик движения','шт'],
+      ]},
+      { title: 'Розетки и управление', items: [
+        ['DEM-EL-001','Розетка','шт'],['DEM-EL-011','Выключатель','шт'],['DEM-EL-012','Рамка','шт'],
+        ['DEM-EL-013','Подрозетник','шт'],['DEM-EL-014','Диммер / терморегулятор','шт'],
+      ]},
+      { title: 'Проводка и щит', items: [
+        ['DEM-EL-004','Силовой кабель','м.п.'],['DEM-EL-005','Проводка','м.п.'],['DEM-EL-006','Кабель-канал','м.п.'],
+        ['DEM-EL-003','Электрощит','шт'],['DEM-EL-015','Автомат','шт'],['DEM-EL-016','УЗО / дифавтомат','шт'],
+      ]},
+    ],
+  },
+  {
+    id: 'plumbing', title: 'Сантехника', icon: '◉',
+    groups: [{ title: 'Приборы и сети', items: [
+      ['DEM-PL-003','Ванна','шт'],['DEM-PL-006','Унитаз','шт'],['DEM-PL-005','Раковина / мойка','шт'],
+      ['DEM-PL-001','Смеситель','шт'],['DEM-PL-007','Инсталляция','шт'],['DEM-PL-010','Трубы водоснабжения / отопления','м.п.'],
+      ['DEM-PL-011','Канализация','м.п.'],['DEM-PL-009','Полотенцесушитель','шт'],
+    ]}],
+  },
+  {
+    id: 'doors', title: 'Двери', icon: '▯',
+    groups: [{ title: 'Двери и проёмы', items: [
+      ['DEM-DR-001','Дверной блок','шт'],['DEM-DR-002','Полотно','шт'],['DEM-DR-003','Коробка / наличники','компл.'],
+    ]}],
+  },
+  {
+    id: 'windows', title: 'Окна', icon: '▦',
+    groups: [{ title: 'Оконные элементы', items: [
+      ['DEM-WN-001','Оконный блок','м²'],['DEM-WN-002','Подоконник','м.п.'],['DEM-WN-003','Откосы','м.п.'],
+    ]}],
+  },
+  {
+    id: 'furniture', title: 'Мебель', icon: '▤',
+    groups: [{ title: 'Встроенная и корпусная мебель', items: [
+      ['DEM-FU-001','Кухня','компл.'],['DEM-FU-002','Встроенный шкаф','шт'],['DEM-FU-003','Гардеробная','компл.'],
+      ['DEM-FU-004','Столешница','м.п.'],
+    ]}],
+  },
+  {
+    id: 'other', title: 'Другое', icon: '+',
+    groups: [{ title: 'Прочее', items: [['DEM-OTHER-001','Другая конструкция / элемент','шт']] }],
+  },
+]
+
 const toNum = value => Number.parseFloat(String(value ?? '').replace(',', '.')) || 0
 
 function roomCalc(room) {
@@ -210,6 +287,60 @@ function RoomCard({room,index,onChange,onRemove,canRemove}) {
   </article>
 }
 
+function DemolitionStep({rooms, selections, setSelections, onBack, onSave}) {
+  const [activeRoomId,setActiveRoomId] = useState(rooms[0]?.id || '')
+  const [activeCategory,setActiveCategory] = useState('floor')
+  const activeRoom = rooms.find(room=>room.id===activeRoomId) || rooms[0]
+  const category = DEMO_CATALOG.find(item=>item.id===activeCategory) || DEMO_CATALOG[0]
+
+  const qty = code => selections[`${activeRoomId}:${code}`] || 0
+  const setQty = (code,next) => {
+    const key=`${activeRoomId}:${code}`
+    setSelections(current=>{
+      const copy={...current}
+      if(next<=0) delete copy[key]
+      else copy[key]=next
+      return copy
+    })
+  }
+  const selectedCount = Object.values(selections).reduce((sum,value)=>sum + (value>0?1:0),0)
+
+  return <section className="workspace workspace--services">
+    <button className="back-link" type="button" onClick={onBack}>← Помещения и геометрия</button>
+    <StepMeta current={3} total={4} label="Новый заказ"/>
+    <div className="workspace__head service-head">
+      <div><p className="eyebrow">Услуги</p><h1>Демонтажные работы</h1><p className="workspace__subtitle">Выберите конкретные элементы. Система позже подтянет технологию, расходники, отходы, вынос и утилизацию.</p></div>
+      <div className="selected-counter"><span>Выбрано позиций</span><strong>{selectedCount}</strong></div>
+    </div>
+
+    <div className="room-tabs">
+      {rooms.map((room,index)=><button key={room.id} className={activeRoomId===room.id?'is-active':''} type="button" onClick={()=>setActiveRoomId(room.id)}><span>{room.type || `Помещение ${index+1}`}</span><small>{roomCalc(room).floor.toFixed(2)} м²</small></button>)}
+    </div>
+
+    <div className="service-layout">
+      <aside className="service-categories">
+        {DEMO_CATALOG.map(item=><button key={item.id} className={activeCategory===item.id?'is-active':''} type="button" onClick={()=>setActiveCategory(item.id)}><span className="service-categories__icon">{item.icon}</span><span>{item.title}</span></button>)}
+      </aside>
+
+      <div className="service-content">
+        <div className="service-content__title"><div><span className="eyebrow">Помещение: {activeRoom?.type}</span><h2>{category.title}</h2></div>{activeRoom && <small>{roomCalc(activeRoom).floor.toFixed(2)} м² по полу</small>}</div>
+        {category.groups.map(group=><section className="service-group" key={group.title}><h3>{group.title}</h3><div className="service-items">
+          {group.items.map(([code,name,unit])=>{
+            const value=qty(code)
+            return <article className={value>0?'service-item is-selected':'service-item'} key={code}>
+              <div className="service-item__meta"><span className="service-code">{code}</span><strong>{name}</strong><small>Единица: {unit}</small></div>
+              <div className="qty-control"><button type="button" onClick={()=>setQty(code,Math.max(0,value-1))}>−</button><span>{value}</span><button type="button" onClick={()=>setQty(code,value+1)}>+</button></div>
+            </article>
+          })}
+        </div></section>)}
+        {activeCategory==='other' && <label className="field other-note"><span>Опишите, что нужно демонтировать</span><input placeholder="Например: декоративная ниша, металлическая конструкция..."/></label>}
+      </div>
+    </div>
+
+    <div className="wizard-footer"><div><span>Следующий модуль</span><strong>Предварительная смета</strong></div><button className="button button--primary button--finish" type="button" onClick={onSave}>Сохранить черновик</button></div>
+  </section>
+}
+
 function CreateOrder({onCancel,onSave}) {
   const [orderStep,setOrderStep]=useState(1)
   const [objectType,setObjectType]=useState('')
@@ -218,6 +349,7 @@ function CreateOrder({onCancel,onSave}) {
   const [floor,setFloor]=useState('')
   const [lift,setLift]=useState('yes')
   const [rooms,setRooms]=useState([newRoom(0)])
+  const [demoSelections,setDemoSelections]=useState({})
   const selected=OBJECT_TYPES.find(x=>x.id===objectType)
 
   const objectValid=objectType && address.trim()
@@ -241,13 +373,15 @@ function CreateOrder({onCancel,onSave}) {
     <PrimaryButton disabled={!objectValid} onClick={()=>setOrderStep(2)}>Продолжить</PrimaryButton>
   </section>
 
-  return <section className="workspace workspace--rooms">
+  if(orderStep===2) return <section className="workspace workspace--rooms">
     <button className="back-link" type="button" onClick={()=>setOrderStep(1)}>← Данные объекта</button>
     <StepMeta current={2} total={4} label="Новый заказ"/>
     <div className="workspace__head room-page-head"><div><p className="eyebrow">Помещения и геометрия</p><h1>Добавьте помещения</h1><p className="workspace__subtitle">Размеры вводятся один раз и дальше автоматически используются в расчёте демонтажа и отделки.</p></div><button className="button button--compact" type="button" onClick={()=>setRooms(current=>[...current,newRoom(current.length)])}>+ Добавить помещение</button></div>
     <div className="rooms-list">{rooms.map((room,index)=><RoomCard key={room.id} room={room} index={index} canRemove={rooms.length>1} onChange={next=>setRooms(current=>current.map(r=>r.id===room.id?next:r))} onRemove={()=>setRooms(current=>current.filter(r=>r.id!==room.id))}/>)}</div>
-    <div className="wizard-footer"><div><span>Следующий модуль</span><strong>Услуги → Демонтажные работы</strong></div><button className="button button--primary button--finish" disabled={!roomsValid} type="button" onClick={()=>onSave({objectType,objectLabel:selected?.title,address,area,floor,lift,rooms:rooms.map(room=>({...room,calc:roomCalc(room)}))})}>Сохранить черновик</button></div>
+    <div className="wizard-footer"><div><span>Следующий модуль</span><strong>Услуги → Демонтажные работы</strong></div><button className="button button--primary button--finish" disabled={!roomsValid} type="button" onClick={()=>setOrderStep(3)}>Продолжить</button></div>
   </section>
+
+  return <DemolitionStep rooms={rooms} selections={demoSelections} setSelections={setDemoSelections} onBack={()=>setOrderStep(2)} onSave={()=>onSave({objectType,objectLabel:selected?.title,address,area,floor,lift,rooms:rooms.map(room=>({...room,calc:roomCalc(room)})),demolition:demoSelections})}/>
 }
 
 export default function App() {
