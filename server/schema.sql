@@ -56,6 +56,28 @@ CREATE TABLE IF NOT EXISTS sessions (
 CREATE INDEX IF NOT EXISTS idx_sessions_account
 ON sessions(account_id, expires_at);
 
+
+CREATE TABLE IF NOT EXISTS price_books (
+  id TEXT PRIMARY KEY,
+  code TEXT NOT NULL,
+  version INTEGER NOT NULL,
+  title TEXT NOT NULL,
+  currency TEXT NOT NULL DEFAULT 'RUB',
+  status TEXT NOT NULL CHECK (status IN ('draft','active','archived')),
+  rates_json TEXT NOT NULL,
+  waste_rules_json TEXT NOT NULL,
+  logistics_json TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  activated_at TEXT,
+  UNIQUE(code,version)
+);
+
+CREATE INDEX IF NOT EXISTS idx_price_books_code_version
+ON price_books(code, version DESC);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_price_books_active_code
+ON price_books(code) WHERE status='active';
+
 CREATE TABLE IF NOT EXISTS projects (
   id TEXT PRIMARY KEY,
   client_id TEXT NOT NULL,
@@ -91,5 +113,5 @@ CREATE INDEX IF NOT EXISTS idx_orders_project
 ON orders(project_id, updated_at DESC);
 
 INSERT INTO schema_meta(key,value)
-VALUES ('schema_version','1')
+VALUES ('schema_version','2')
 ON CONFLICT(key) DO UPDATE SET value=excluded.value;
