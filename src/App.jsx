@@ -18,6 +18,50 @@ const OBJECT_TYPES = [
   { id: 'house', title: 'Дом', text: 'Частный дом, таунхаус или коттедж' },
 ]
 
+const ROOM_TYPES = ['Ванная','Санузел','Кухня','Гостиная','Спальня','Прихожая','Балкон / лоджия','Другое']
+
+const toNum = value => Number.parseFloat(String(value ?? '').replace(',', '.')) || 0
+
+function roomCalc(room) {
+  const height = toNum(room.height)
+  const floor = room.mode === 'exact'
+    ? toNum(room.length) * toNum(room.width)
+    : toNum(room.floorArea)
+  const perimeter = room.mode === 'exact'
+    ? 2 * (toNum(room.length) + toNum(room.width))
+    : floor > 0 ? 4 * Math.sqrt(floor) : 0
+  const grossWalls = perimeter * height
+  const doorArea = (toNum(room.doorWidth) / 100) * (toNum(room.doorHeight) / 100) * Math.max(1, toNum(room.doorQty))
+  const windowArea = (toNum(room.windowWidth) / 100) * (toNum(room.windowHeight) / 100) * Math.max(1, toNum(room.windowQty))
+  const openings = doorArea + windowArea
+  return {
+    floor,
+    ceiling: floor,
+    perimeter,
+    grossWalls,
+    openings,
+    netWalls: Math.max(0, grossWalls - openings),
+  }
+}
+
+function newRoom(index = 0) {
+  return {
+    id: `room-${Date.now()}-${index}`,
+    type: index === 0 ? 'Ванная' : '',
+    mode: 'exact',
+    length: '',
+    width: '',
+    floorArea: '',
+    height: '',
+    doorWidth: '',
+    doorHeight: '',
+    doorQty: '1',
+    windowWidth: '',
+    windowHeight: '',
+    windowQty: '1',
+  }
+}
+
 function Header({ authenticated, onOrders, onCreateOrder }) {
   return (
     <header className="topbar">
@@ -120,31 +164,89 @@ function OrdersDashboard({orders,onCreateOrder}) {
   return <section className="workspace">
     <div className="workspace__head"><div><p className="eyebrow">Кабинет клиента</p><h1>Мои заказы</h1><p className="workspace__subtitle">Здесь хранятся расчёты, сметы и текущие заказы.</p></div><button className="button button--compact" type="button" onClick={onCreateOrder}>+ Создать заказ</button></div>
     {orders.length===0 ? <div className="empty-state"><div className="empty-state__icon">＋</div><h2>Заказов пока нет</h2><p>Создайте первый заказ: выберите объект, добавьте помещения и перейдите к расчёту работ.</p><button className="button button--primary empty-state__button" type="button" onClick={onCreateOrder}>Создать заказ</button></div> :
-    <div className="order-list">{orders.map(order=><article className="order-card" key={order.id}><div className="order-card__top"><div><span className="status status--draft">Черновик</span><h2>Заказ №{order.id}</h2></div><strong>{order.total.toLocaleString('ru-RU')} ₽</strong></div><dl><div><dt>Объект</dt><dd>{order.objectLabel}</dd></div><div><dt>Адрес</dt><dd>{order.address||'Не указан'}</dd></div><div><dt>Площадь</dt><dd>{order.area?order.area+' м²':'Не указана'}</dd></div></dl><div className="order-card__actions"><button className="secondary-button secondary-button--inline" type="button">Продолжить расчёт</button></div></article>)}</div>}
+    <div className="order-list">{orders.map(order=><article className="order-card" key={order.id}><div className="order-card__top"><div><span className="status status--draft">Черновик</span><h2>Заказ №{order.id}</h2></div><strong>{order.total.toLocaleString('ru-RU')} ₽</strong></div><dl><div><dt>Объект</dt><dd>{order.objectLabel}</dd></div><div><dt>Адрес</dt><dd>{order.address||'Не указан'}</dd></div><div><dt>Помещения</dt><dd>{order.rooms?.length || 0}</dd></div></dl><div className="order-card__actions"><button className="secondary-button secondary-button--inline" type="button">Продолжить расчёт</button></div></article>)}</div>}
   </section>
 }
 
+function RoomCard({room,index,onChange,onRemove,canRemove}) {
+  const calc = roomCalc(room)
+  const set = (key,value) => onChange({...room,[key]:value})
+  return <article className="room-card">
+    <div className="room-card__head"><div><span className="room-index">{index+1}</span><strong>Помещение {index+1}</strong></div>{canRemove && <button className="danger-link" type="button" onClick={onRemove}>Удалить</button>}</div>
+
+    <label className="field"><span>Тип помещения</span><select value={room.type} onChange={e=>set('type',e.target.value)}><option value="">Выберите</option>{ROOM_TYPES.map(x=><option key={x}>{x}</option>)}</select></label>
+
+    <div className="mode-switch">
+      <button type="button" className={room.mode==='exact'?'is-active':''} onClick={()=>set('mode','exact')}>По размерам</button>
+      <button type="button" className={room.mode==='quick'?'is-active':''} onClick={()=>set('mode','quick')}>По площади</button>
+    </div>
+
+    {room.mode==='exact' ? <div className="form-grid room-dimensions">
+      <label className="field"><span>Длина, м</span><input inputMode="decimal" placeholder="5,00" value={room.length} onChange={e=>set('length',e.target.value)}/></label>
+      <label className="field"><span>Ширина, м</span><input inputMode="decimal" placeholder="4,00" value={room.width} onChange={e=>set('width',e.target.value)}/></label>
+      <label className="field field--wide"><span>Высота потолка, м</span><input inputMode="decimal" placeholder="3,00" value={room.height} onChange={e=>set('height',e.target.value)}/></label>
+    </div> : <div className="form-grid room-dimensions">
+      <label className="field"><span>Площадь по полу, м²</span><input inputMode="decimal" placeholder="20,00" value={room.floorArea} onChange={e=>set('floorArea',e.target.value)}/></label>
+      <label className="field"><span>Высота потолка, м</span><input inputMode="decimal" placeholder="3,00" value={room.height} onChange={e=>set('height',e.target.value)}/></label>
+      <p className="quick-note">В быстром режиме периметр рассчитывается как для условно квадратного помещения. Итог помечается как предварительный.</p>
+    </div>}
+
+    <details className="openings">
+      <summary>Окна и двери</summary>
+      <div className="opening-grid">
+        <div><h3>Дверь</h3><div className="mini-fields"><label><span>Ширина, см</span><input inputMode="numeric" value={room.doorWidth} onChange={e=>set('doorWidth',e.target.value)}/></label><label><span>Высота, см</span><input inputMode="numeric" value={room.doorHeight} onChange={e=>set('doorHeight',e.target.value)}/></label><label><span>Кол-во</span><input inputMode="numeric" value={room.doorQty} onChange={e=>set('doorQty',e.target.value)}/></label></div></div>
+        <div><h3>Окно</h3><div className="mini-fields"><label><span>Ширина, см</span><input inputMode="numeric" value={room.windowWidth} onChange={e=>set('windowWidth',e.target.value)}/></label><label><span>Высота, см</span><input inputMode="numeric" value={room.windowHeight} onChange={e=>set('windowHeight',e.target.value)}/></label><label><span>Кол-во</span><input inputMode="numeric" value={room.windowQty} onChange={e=>set('windowQty',e.target.value)}/></label></div></div>
+      </div>
+    </details>
+
+    <div className="geometry-results">
+      <div><span>Площадь помещения</span><strong>{calc.floor.toFixed(2)} м²</strong></div>
+      <div><span>Потолок</span><strong>{calc.ceiling.toFixed(2)} м²</strong></div>
+      <div><span>Периметр</span><strong>{calc.perimeter.toFixed(2)} м</strong></div>
+      <div><span>Стены брутто</span><strong>{calc.grossWalls.toFixed(2)} м²</strong></div>
+      <div><span>Проёмы</span><strong>− {calc.openings.toFixed(2)} м²</strong></div>
+      <div className="result-main"><span>Чистая площадь стен</span><strong>{calc.netWalls.toFixed(2)} м²</strong></div>
+    </div>
+  </article>
+}
+
 function CreateOrder({onCancel,onSave}) {
+  const [orderStep,setOrderStep]=useState(1)
   const [objectType,setObjectType]=useState('')
   const [address,setAddress]=useState('')
   const [area,setArea]=useState('')
   const [floor,setFloor]=useState('')
   const [lift,setLift]=useState('yes')
-  const valid=objectType && address.trim()
+  const [rooms,setRooms]=useState([newRoom(0)])
   const selected=OBJECT_TYPES.find(x=>x.id===objectType)
-  return <section className="workspace workspace--narrow">
+
+  const objectValid=objectType && address.trim()
+  const roomsValid=rooms.length>0 && rooms.every(room=>{
+    const calc=roomCalc(room)
+    return room.type && calc.floor>0 && toNum(room.height)>0
+  })
+
+  if(orderStep===1) return <section className="workspace workspace--narrow">
     <button className="back-link" type="button" onClick={onCancel}>← Мои заказы</button>
     <StepMeta current={1} total={4} label="Новый заказ"/>
     <div className="page-heading"><p className="eyebrow">Создание заказа</p><h1>Расскажите об объекте</h1><p>На следующем шаге добавим помещения и геометрию.</p></div>
     <div className="object-grid">{OBJECT_TYPES.map(item=><button key={item.id} className={objectType===item.id?'object-card is-selected':'object-card'} type="button" onClick={()=>setObjectType(item.id)}><span className="object-card__icon">{item.id==='new'?'▦':item.id==='secondary'?'⌂':'△'}</span><strong>{item.title}</strong><small>{item.text}</small></button>)}</div>
     <div className="form-grid form-grid--order">
       <label className="field field--wide"><span>Адрес объекта</span><input placeholder="Москва, улица, дом, квартира" value={address} onChange={e=>setAddress(e.target.value)}/></label>
-      <label className="field"><span>Площадь по полу, м²</span><input inputMode="decimal" placeholder="72" value={area} onChange={e=>setArea(e.target.value.replace(/[^0-9.,]/g,''))}/></label>
+      <label className="field"><span>Общая площадь по полу, м²</span><input inputMode="decimal" placeholder="72" value={area} onChange={e=>setArea(e.target.value.replace(/[^0-9.,]/g,''))}/></label>
       <label className="field"><span>Этаж</span><input inputMode="numeric" placeholder="8" value={floor} onChange={e=>setFloor(e.target.value.replace(/\D/g,''))}/></label>
     </div>
     <div className="segmented"><span>Есть лифт?</span><div><button className={lift==='yes'?'is-active':''} onClick={()=>setLift('yes')} type="button">Да</button><button className={lift==='no'?'is-active':''} onClick={()=>setLift('no')} type="button">Нет</button></div></div>
     <div className="order-summary"><div><span>Тип объекта</span><strong>{selected?.title||'Не выбран'}</strong></div><div><span>Следующий шаг</span><strong>Помещения и геометрия</strong></div></div>
-    <PrimaryButton disabled={!valid} onClick={()=>onSave({objectType,objectLabel:selected?.title,address,area,floor,lift})}>Сохранить и продолжить</PrimaryButton>
+    <PrimaryButton disabled={!objectValid} onClick={()=>setOrderStep(2)}>Продолжить</PrimaryButton>
+  </section>
+
+  return <section className="workspace workspace--rooms">
+    <button className="back-link" type="button" onClick={()=>setOrderStep(1)}>← Данные объекта</button>
+    <StepMeta current={2} total={4} label="Новый заказ"/>
+    <div className="workspace__head room-page-head"><div><p className="eyebrow">Помещения и геометрия</p><h1>Добавьте помещения</h1><p className="workspace__subtitle">Размеры вводятся один раз и дальше автоматически используются в расчёте демонтажа и отделки.</p></div><button className="button button--compact" type="button" onClick={()=>setRooms(current=>[...current,newRoom(current.length)])}>+ Добавить помещение</button></div>
+    <div className="rooms-list">{rooms.map((room,index)=><RoomCard key={room.id} room={room} index={index} canRemove={rooms.length>1} onChange={next=>setRooms(current=>current.map(r=>r.id===room.id?next:r))} onRemove={()=>setRooms(current=>current.filter(r=>r.id!==room.id))}/>)}</div>
+    <div className="wizard-footer"><div><span>Следующий модуль</span><strong>Услуги → Демонтажные работы</strong></div><button className="button button--primary button--finish" disabled={!roomsValid} type="button" onClick={()=>onSave({objectType,objectLabel:selected?.title,address,area,floor,lift,rooms:rooms.map(room=>({...room,calc:roomCalc(room)}))})}>Сохранить черновик</button></div>
   </section>
 }
 
