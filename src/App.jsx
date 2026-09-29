@@ -17,13 +17,14 @@ import { readJSON, removeKey, writeJSON } from './lib/storage.js'
 const ACCOUNT_KEY='bathdream.account'
 const ORDERS_KEY='bathdream.orders'
 
-function Header({authenticated,onOrders,onCreateOrder,onLogout}) {
+function Header({authenticated,onServices,onOrders,onCreateOrder,onLogout}) {
   return <header className="topbar">
     <div className="topbar__inner">
-      <button className="brand brand-button" type="button" onClick={authenticated?onOrders:undefined} aria-label="Bath Dream">
+      <button className="brand brand-button" type="button" onClick={authenticated?onServices:undefined} aria-label="Bath Dream">
         <span className="brand__bath">BATH</span><span className="brand__dream">dream</span>
       </button>
       <div className="topbar__meta">
+        {authenticated&&<button className="nav-link" type="button" onClick={onServices}>Услуги</button>}
         {authenticated&&<button className="nav-link" type="button" onClick={onOrders}>Мои заказы</button>}
         {authenticated&&<button className="nav-link" type="button" onClick={onCreateOrder}>Создать заказ</button>}
         <button className="city" type="button"><span className="city__dot"/>Москва</button>
@@ -114,13 +115,77 @@ function ProfileStep({type,contact,method,onBack,onNext,busy,error}) {
   </>
 }
 
-function SuccessStep({clientType,onOrders,onCreateOrder}) {
-  return <div className="success">
-    <div className="success__icon">✓</div><p className="eyebrow">Готово</p><h1>Аккаунт создан</h1>
-    <p>Профиль «{CLIENT_TYPES.find(item=>item.id===clientType)?.title}» готов. Теперь создайте первый заказ.</p>
-    <PrimaryButton onClick={onCreateOrder}>Создать заказ</PrimaryButton>
-    <button className="secondary-button" type="button" onClick={onOrders}>Перейти в личный кабинет</button>
-  </div>
+function ServicesPage({onDemolition,onWaste}) {
+  return <section className="services-page">
+    <div className="services-hero">
+      <p className="eyebrow">Услуги Bath Dream</p>
+      <h1>Что нужно сделать?</h1>
+      <p>Выберите услугу. У каждой услуги свой расчёт и отдельный сценарий заказа.</p>
+    </div>
+
+    <div className="services-grid">
+      <button className="service-card service-card--demolition" type="button" onClick={onDemolition}>
+        <div className="service-card__top"><span className="service-card__number">01</span><span className="service-card__badge">Расчёт по помещениям</span></div>
+        <div className="service-card__symbol">Д</div>
+        <div className="service-card__content">
+          <h2>Демонтаж</h2>
+          <p>Расчёт демонтажных работ по помещениям: геометрия, объёмы, смета, мусор и логистика.</p>
+          <span className="service-card__action">Перейти к услуге <b>→</b></span>
+        </div>
+      </button>
+
+      <button className="service-card service-card--waste" type="button" onClick={onWaste}>
+        <div className="service-card__top"><span className="service-card__number">02</span><span className="service-card__badge">Отдельная услуга</span></div>
+        <div className="service-card__symbol">В</div>
+        <div className="service-card__content">
+          <h2>Вывоз строительного мусора</h2>
+          <p>Отдельный заказ на вывоз: адрес, этаж, лифт, объём отходов, погрузка, транспорт и утилизация.</p>
+          <span className="service-card__action">Перейти к услуге <b>→</b></span>
+        </div>
+      </button>
+    </div>
+  </section>
+}
+
+function WasteRemovalService({onBack}) {
+  return <section className="workspace service-workspace">
+    <button className="back-link" type="button" onClick={onBack}>← Все услуги</button>
+    <div className="workspace__head">
+      <div>
+        <p className="eyebrow">Услуга 02</p>
+        <h1>Вывоз строительного мусора</h1>
+        <p className="workspace__subtitle">Самостоятельная услуга без обязательного заказа на демонтаж.</p>
+      </div>
+    </div>
+
+    <div className="waste-service-grid">
+      <article className="detail-card">
+        <p className="eyebrow">Для расчёта</p>
+        <h2>Что нужно от клиента</h2>
+        <div className="service-checklist">
+          <span>01 · Адрес объекта</span>
+          <span>02 · Этаж и наличие лифта</span>
+          <span>03 · Примерный объём или количество мешков</span>
+          <span>04 · Тип строительного мусора</span>
+        </div>
+      </article>
+      <article className="detail-card">
+        <p className="eyebrow">Состав услуги</p>
+        <h2>Что считаем</h2>
+        <div className="service-checklist">
+          <span>Вынос с объекта</span>
+          <span>Погрузку</span>
+          <span>Транспорт</span>
+          <span>Утилизацию</span>
+        </div>
+      </article>
+    </div>
+
+    <div className="service-next">
+      <strong>Услуга выделена в отдельный контур</strong>
+      <span>Следующим шагом добавим короткий калькулятор вывоза: объём → этаж → машина → стоимость.</span>
+    </div>
+  </section>
 }
 
 function StatusBadge({status}) {
@@ -829,7 +894,7 @@ function OrderDetails({order,onBack,onEdit,onStatusChange,onDuplicate,onDelete})
 export default function App() {
   const initialRemoteSession=useMemo(()=>REMOTE_ENABLED&&hasRemoteSession(),[])
   const storedAccount=useMemo(()=>REMOTE_ENABLED&&!initialRemoteSession?null:readJSON(ACCOUNT_KEY,null),[initialRemoteSession])
-  const [screen,setScreen]=useState(storedAccount?'orders':'auth')
+  const [screen,setScreen]=useState(storedAccount?'services':'auth')
   const [step,setStep]=useState(1)
   const [method,setMethod]=useState(storedAccount?.method||'phone')
   const [contact,setContact]=useState(storedAccount?.contact||'')
@@ -884,7 +949,7 @@ export default function App() {
           setContact(remote.account.contact||'')
           setMethod(remote.account.method||'phone')
           writeJSON(ACCOUNT_KEY,remote.account)
-          setScreen('orders')
+          setScreen('services')
           setRemoteReady(true)
         } else {
           setProfile(null)
@@ -973,7 +1038,7 @@ export default function App() {
         writeJSON(ACCOUNT_KEY,remote.account)
         writeJSON(ORDERS_KEY,nextOrders)
         setRemoteReady(true)
-        setScreen('orders')
+        setScreen('services')
       } else {
         setProfile(null)
         setOrders([])
@@ -994,7 +1059,7 @@ export default function App() {
       const nextAccount={profile:value,clientType,contact,method}
       setProfile(value)
       writeJSON(ACCOUNT_KEY,nextAccount)
-      setScreen('success')
+      setScreen('services')
       return
     }
 
@@ -1012,7 +1077,7 @@ export default function App() {
       writeJSON(ORDERS_KEY,nextOrders)
       setRemoteReady(true)
       setRemoteStatus('online')
-      setScreen('success')
+      setScreen('services')
     } catch (error) {
       setAuthError(error instanceof Error?error.message:'Не удалось сохранить профиль')
     } finally {
@@ -1122,10 +1187,11 @@ export default function App() {
   const editingOrder=orders.find(order=>order.id===editingOrderId)
 
   return <div className="app-shell">
-    <Header authenticated={authenticated} onOrders={()=>setScreen('orders')} onCreateOrder={createOrder} onLogout={logout}/>
-    <main className={screen==='auth'||screen==='success'?'main':'main main--workspace'}>
+    <Header authenticated={authenticated} onServices={()=>setScreen('services')} onOrders={()=>setScreen('orders')} onCreateOrder={createOrder} onLogout={logout}/>
+    <main className={screen==='auth'?'main':'main main--workspace'}>
       {screen==='auth'&&<section className="auth-card">{renderAuth()}</section>}
-      {screen==='success'&&<section className="auth-card"><SuccessStep clientType={clientType} onOrders={()=>setScreen('orders')} onCreateOrder={createOrder}/></section>}
+      {screen==='services'&&<ServicesPage onDemolition={()=>setScreen('orders')} onWaste={()=>setScreen('waste-service')}/>}
+      {screen==='waste-service'&&<WasteRemovalService onBack={()=>setScreen('services')}/>}
       {screen==='orders'&&<OrdersDashboard orders={orders} onCreateOrder={createOrder} onOpenOrder={openOrder} onEditOrder={editOrder} onDuplicate={duplicateOrder} onDelete={deleteOrder} onExport={exportData} onImport={importData} notice={notice} storageMode={remoteStatus}/>} 
       {screen==='create-order'&&<CreateOrder initialOrder={editingOrder} onCancel={()=>setScreen('orders')} onSave={saveOrder} pricing={pricing}/>}
       {screen==='order-detail'&&<OrderDetails order={selectedOrder} onBack={()=>setScreen('orders')} onEdit={()=>selectedOrder&&editOrder(selectedOrder.id)} onStatusChange={status=>selectedOrder&&changeStatus(selectedOrder.id,status)} onDuplicate={()=>selectedOrder&&duplicateOrder(selectedOrder.id)} onDelete={()=>selectedOrder&&deleteOrder(selectedOrder.id)}/>}
