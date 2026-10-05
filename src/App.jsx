@@ -334,6 +334,7 @@ async function makeLocalDocument(kind,order,existing=[]){
     }
   } else if(kind==='ks2'){
     const signedOffer=existing.find(item=>item.kind==='offer'&&item.status==='signed')
+    if(!signedOffer) throw new Error('Сначала примите договор-оферту по этой смете')
     const rows=estimate.map((item,index)=>({
       number:index+1,estimatePosition:index+1,name:item.name,rateCode:item.code,
       unit:item.unit,quantity:item.quantity,unitPrice:item.rate,amount:item.sum,
@@ -380,9 +381,9 @@ function Ks2Preview({data}){
       <p><b>Отчётный период:</b> {data.reportingPeriod?.from||'—'} — {data.reportingPeriod?.to||'—'}</p>
     </div>
     <div className="ks2-table">
-      <div className="ks2-row ks2-row--head"><span>№</span><span>Работа</span><span>Расценка</span><span>Ед.</span><span>Кол-во</span><span>Цена</span><span>Стоимость</span></div>
+      <div className="ks2-row ks2-row--head"><span>№</span><span>Поз. сметы</span><span>Наименование работ</span><span>Расценка</span><span>Ед.</span><span>Кол-во</span><span>Цена</span><span>Стоимость</span></div>
       {(data.rows||[]).map(row=><div className="ks2-row" key={row.number}>
-        <span>{row.number}</span><span>{row.name}</span><span>{row.rateCode||'—'}</span><span>{row.unit}</span>
+        <span>{row.number}</span><span>{row.estimatePosition||row.number}</span><span>{row.name}</span><span>{row.rateCode||'—'}</span><span>{row.unit}</span>
         <span>{Number(row.quantity||0).toFixed(2)}</span><span>{money(row.unitPrice||0)}</span><strong>{money(row.amount||0)} ₽</strong>
       </div>)}
     </div>
@@ -471,13 +472,19 @@ function DocumentsPanel({order,onStatusChange}) {
     </div>
 
     <div className="document-create-row">
-      {Object.entries(DOCUMENT_KIND_META).map(([kind,meta])=><button
-        key={kind}
-        className={kind==='offer'||kind==='ks2'?'button button--compact document-create-primary':'button button--compact'}
-        type="button"
-        disabled={Boolean(busy)}
-        onClick={()=>create(kind)}
-      >{busy==='create-'+kind?'Формируем…':'+ '+meta.short}</button>)}
+      {['offer','ks2'].map(kind=>{
+        const meta=DOCUMENT_KIND_META[kind]
+        const acceptedOffer=documents.some(item=>item.kind==='offer'&&item.status==='signed')
+        const disabled=Boolean(busy)||(kind==='ks2'&&!acceptedOffer)
+        return <button
+          key={kind}
+          className="button button--compact document-create-primary"
+          type="button"
+          disabled={disabled}
+          title={kind==='ks2'&&!acceptedOffer?'Сначала примите договор-оферту':''}
+          onClick={()=>create(kind)}
+        >{busy==='create-'+kind?'Формируем…':kind==='offer'?'+ Договор-оферта':'+ КС-2'}</button>
+      })}
     </div>
 
     {error&&<div className="notice notice--error">{error}</div>}
