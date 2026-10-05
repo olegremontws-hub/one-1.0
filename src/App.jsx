@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import CreateOrder from './components/CreateOrder.jsx'
 import CreateRoughOrder from './components/CreateRoughOrder.jsx'
+import CreateWasteOrder from './components/CreateWasteOrder.jsx'
 import {
   CLIENT_TYPES, ORDER_STATUSES, PROFILE_FIELDS, buildEstimateRows, buildRoughEstimateRows, cloneOrder, money,
   statusLabel, validateOrder, validateProfileField,
@@ -1153,7 +1154,7 @@ export default function App() {
   }
 
   const openOrder=id=>{setSelectedOrderId(id);setScreen('order-detail')}
-  const editOrder=id=>{const order=orders.find(item=>item.id===id);setEditingOrderId(id);setScreen(order?.serviceType==='rough'?'create-rough-order':'create-order')}
+  const editOrder=id=>{const order=orders.find(item=>item.id===id);setEditingOrderId(id);setScreen(order?.serviceType==='rough'?'create-rough-order':order?.serviceType==='waste'?'create-waste-order':'create-order')}
   const createOrder=()=>{
     setEditingOrderId(null)
     setScreen('create-order')
@@ -1165,6 +1166,11 @@ export default function App() {
   const createRoughOrder=()=>{
     setEditingOrderId(null)
     setScreen('create-rough-order')
+  }
+
+  const createWasteOrder=()=>{
+    setEditingOrderId(null)
+    setScreen('create-waste-order')
   }
 
   const duplicateOrder=id=>{
@@ -1225,14 +1231,14 @@ export default function App() {
   const editingOrder=orders.find(order=>order.id===editingOrderId)
 
   return <div className="app-shell">
-    <Header authenticated={authenticated} onServices={()=>setScreen('services')} onOrders={()=>setScreen('orders')} onCreateOrder={createOrder} onLogout={logout}/>
+    <Header authenticated={authenticated} onServices={()=>setScreen('services')} onOrders={()=>setScreen('orders')} onCreateOrder={()=>setScreen('services')} onLogout={logout}/>
     <main className={screen==='auth'?'main':'main main--workspace'}>
       {screen==='auth'&&<section className="auth-card">{renderAuth()}</section>}
-      {screen==='services'&&<ServicesPage onDemolition={()=>setScreen('orders')} onWaste={()=>setScreen('waste-service')} onRough={createRoughOrder}/>}
-      {screen==='waste-service'&&<WasteRemovalService onBack={()=>setScreen('services')}/>}
-      {screen==='orders'&&<OrdersDashboard orders={orders} onCreateOrder={createOrder} onOpenOrder={openOrder} onEditOrder={editOrder} onDuplicate={duplicateOrder} onDelete={deleteOrder} onExport={exportData} onImport={importData} notice={notice} storageMode={remoteStatus}/>} 
+      {screen==='services'&&<ServicesPage onDemolition={createOrder} onWaste={createWasteOrder} onRough={createRoughOrder}/>}
+      {screen==='orders'&&<OrdersDashboard orders={orders} onCreateOrder={()=>setScreen('services')} onOpenOrder={openOrder} onEditOrder={editOrder} onDuplicate={duplicateOrder} onDelete={deleteOrder} onExport={exportData} onImport={importData} notice={notice} storageMode={remoteStatus}/>} 
       {screen==='create-order'&&<CreateOrder initialOrder={editingOrder} onCancel={()=>setScreen('orders')} onSave={saveOrder} pricing={pricing}/>}
       {screen==='create-rough-order'&&<CreateRoughOrder initialOrder={editingOrder} onCancel={()=>setScreen('services')} onSave={saveOrder}/>}
+      {screen==='create-waste-order'&&<CreateWasteOrder initialOrder={editingOrder} onCancel={()=>setScreen('services')} onSave={saveOrder}/>}
       {screen==='order-detail'&&<OrderDetails order={selectedOrder} onBack={()=>setScreen('orders')} onEdit={()=>selectedOrder&&editOrder(selectedOrder.id)} onStatusChange={status=>selectedOrder&&changeStatus(selectedOrder.id,status)} onDuplicate={()=>selectedOrder&&duplicateOrder(selectedOrder.id)} onDelete={()=>selectedOrder&&deleteOrder(selectedOrder.id)}/>}
     </main>
     <footer className="footer"><span>© Bath Dream</span><span>{authenticated?'Клиентский кабинет · рабочая MVP':'Клиентский модуль · MVP'}</span></footer>
