@@ -263,6 +263,9 @@ export function createDocument(accountId,publicNumber,kind) {
   const signedOffer=kind==='ks2'
     ? db.prepare("SELECT number FROM documents WHERE order_id=? AND kind='offer' AND status='signed' ORDER BY signed_at DESC, created_at DESC LIMIT 1").get(order.order_id)
     : null
+  if(kind==='ks2'&&!signedOffer){
+    throw Object.assign(new Error('Сначала клиент должен принять договор-оферту по этой смете'),{status:409})
+  }
   const content=documentBody(kind,profileSnapshot(order),orderSnapshot(order),{
     documentNumber:number,
     offerNumber:signedOffer?.number||null,
