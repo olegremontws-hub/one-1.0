@@ -123,32 +123,44 @@ function YandexMap({address}){
 
 function AddressField({value,onChange}){
   const [remote,setRemote]=useState([])
-  const token=import.meta.env.VITE_DADATA_TOKEN||''
+  const [loading,setLoading]=useState(false)
+  const suggestKey=import.meta.env.VITE_YANDEX_SUGGEST_API_KEY||import.meta.env.VITE_YANDEX_MAPS_API_KEY||''
 
   useEffect(()=>{
-    if(!token||value.trim().length<4){
+    const text=value.trim()
+    if(!suggestKey||text.length<3){
       setRemote([])
+      setLoading(false)
       return undefined
     }
     const controller=new AbortController()
     const timer=setTimeout(async()=>{
+      setLoading(true)
       try{
-        const response=await fetch('https://suggestions.dadata.ru/suggestions/api/4_1/rs/suggest/address',{
-          method:'POST',
-          headers:{'Content-Type':'application/json','Accept':'application/json','Authorization':'Token '+token},
-          body:JSON.stringify({query:value,locations:[{city:'Москва'}],count:7}),
-          signal:controller.signal,
+        const params=new URLSearchParams({
+          apikey:suggestKey,
+          text,
+          lang:'ru',
+          results:'7',
+          types:'geo',
+          countries:'ru',
+          print_address:'1',
         })
+        const response=await fetch('https://suggest-maps.yandex.ru/v1/suggest?'+params.toString(),{signal:controller.signal})
         if(response.ok){
           const data=await response.json()
-          setRemote((data.suggestions||[]).map(item=>item.value))
+          setRemote((data.results||[]).map(item=>item.address?.formatted_address||item.title?.text).filter(Boolean))
+        } else {
+          setRemote([])
         }
       }catch(error){
         if(error.name!=='AbortError') setRemote([])
+      }finally{
+        if(!controller.signal.aborted) setLoading(false)
       }
-    },250)
+    },280)
     return ()=>{clearTimeout(timer);controller.abort()}
-  },[value,token])
+  },[value,suggestKey])
 
   const local=ADDRESS_DIRECTORY.filter(item=>item.toLowerCase().includes(value.trim().toLowerCase())).slice(0,6)
   const suggestions=(remote.length?remote:local).filter((item,index,array)=>array.indexOf(item)===index)
@@ -157,7 +169,9 @@ function AddressField({value,onChange}){
     <label className="checkout-field">
       <span>Адрес объекта</span>
       <input value={value} onChange={e=>onChange(e.target.value)} placeholder="Начните вводить улицу и дом" autoComplete="street-address"/>
-      <small>{token?'Подсказки подключены к адресному справочнику.':'Сейчас используется встроенный демо-справочник; внешний справочник подключается через VITE_DADATA_TOKEN.'}</small>
+      <small>{suggestKey
+        ? loading?'Ищем адрес в справочнике Яндекса…':'Подсказки адреса: Yandex Geosuggest.'
+        :'Preview: встроенный справочник. Для полного поиска адресов нужен VITE_YANDEX_SUGGEST_API_KEY.'}</small>
     </label>
     {value.trim().length>=2&&suggestions.length>0&&<div className="address-suggest__list">
       {suggestions.map(item=><button key={item} type="button" onClick={()=>onChange(item)}>⌖ <span>{item}</span></button>)}
@@ -370,7 +384,7 @@ function Success({request,onCatalog,onOrders}){
     <div className="market-success__mark">✓</div>
     <span className="eyebrow">Заявка создана</span>
     <h1>{request.id}</h1>
-    <p>Заказ на услугу «{request.serviceTitle}» сохранён. Следующий этап — серверная отправка заявки и назначение исполнителя.</p>
+    <p>Заказ на услугу «{request.serviceTitle}» сохранён в разделе «Мои заказы». Следующий этап — серверная отправка заявки и назначение исполнителя.</p>
     <div className="market-success__summary">
       <div><span>Адрес</span><strong>{request.address}</strong></div>
       <div><span>Дата</span><strong>{request.date} · {request.time}</strong></div>
