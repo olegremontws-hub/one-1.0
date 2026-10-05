@@ -47,7 +47,14 @@ export default function AddressPicker({
   const suggestRef=useRef(null)
   const [apiReady,setApiReady]=useState(false)
   const [apiError,setApiError]=useState('')
-  const iframeSrc=useMemo(()=>widgetUrl(value),[value])
+  const [mapQuery,setMapQuery]=useState(value||'Москва')
+  const iframeSrc=useMemo(()=>widgetUrl(mapQuery),[mapQuery])
+
+  useEffect(()=>{
+    if(HAS_YANDEX_API) return
+    const timer=setTimeout(()=>setMapQuery(value||'Москва'),500)
+    return ()=>clearTimeout(timer)
+  },[value])
 
   const placeAddress=async(address)=>{
     const text=String(address||'').trim()
@@ -113,7 +120,9 @@ export default function AddressPicker({
 
   const commit=()=>{
     const text=String(value||'').trim()
-    if(text) placeAddress(text)
+    if(!text) return
+    setMapQuery(text)
+    placeAddress(text)
   }
 
   return <div className="address-picker">
