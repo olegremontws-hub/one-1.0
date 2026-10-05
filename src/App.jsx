@@ -1536,7 +1536,8 @@ export default function App() {
     <Header authenticated={authenticated} onHome={()=>setScreen('home')} onCabinet={()=>setScreen('cabinet')} onOrders={()=>setScreen('orders')} onCreateOrder={()=>setScreen('services')} onLogout={logout}/>
     <main className={screen==='auth'?'main':'main main--workspace'}>
       {screen==='auth'&&<section className="auth-card">{renderAuth()}</section>}
-      {screen==='home'&&<MarketplaceHome onDemolition={createOrder} onWaste={createWasteOrder} onRough={createRoughOrder} onOrders={()=>setScreen('orders')} onCabinet={()=>setScreen('cabinet')}/>}\n      {screen==='cabinet'&&<ClientHome profile={profile} orders={orders} onOpenOrder={openOrder} onCreateProject={()=>setScreen('services')} onDemolition={createOrder} onWaste={createWasteOrder} onRough={createRoughOrder} onOrders={()=>setScreen('orders')}/>}
+      {screen==='home'&&<MarketplaceHome onDemolition={createOrder} onWaste={createWasteOrder} onRough={createRoughOrder} onOrders={()=>setScreen('orders')} onCabinet={()=>setScreen('cabinet')}/>}
+      {screen==='cabinet'&&<ClientHome profile={profile} orders={orders} onOpenOrder={openOrder} onCreateProject={()=>setScreen('services')} onDemolition={createOrder} onWaste={createWasteOrder} onRough={createRoughOrder} onOrders={()=>setScreen('orders')}/>}
       {screen==='services'&&<ServicesPage onDemolition={createOrder} onWaste={createWasteOrder} onRough={createRoughOrder}/>}
       {screen==='orders'&&<OrdersDashboard orders={orders} onCreateOrder={()=>setScreen('services')} onMarketplace={()=>setScreen('home')} onOpenOrder={openOrder} onEditOrder={editOrder} onDuplicate={duplicateOrder} onDelete={deleteOrder} onExport={exportData} onImport={importData} notice={notice} storageMode={remoteStatus}/>} 
       {screen==='create-order'&&<CreateOrder initialOrder={editingOrder} onCancel={()=>setScreen('orders')} onSave={saveOrder} pricing={pricing}/>}
