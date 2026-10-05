@@ -627,10 +627,17 @@ const ROUGH_STAGE_TITLES=[
   'Полы, стены и потолки',
   'Контроль качества и подготовка к приёмке',
 ]
+const WASTE_STAGE_TITLES=[
+  'Подтверждение заказа и подачи',
+  'Вынос с объекта',
+  'Погрузка',
+  'Вывоз и утилизация',
+  'Подтверждение завершения',
+]
 
 function makeLocalSchedule(orderNumber,serviceType='demolition'){
   const today=new Date()
-  const titles=serviceType==='rough'?ROUGH_STAGE_TITLES:LOCAL_STAGE_TITLES
+  const titles=serviceType==='rough'?ROUGH_STAGE_TITLES:serviceType==='waste'?WASTE_STAGE_TITLES:LOCAL_STAGE_TITLES
   const stages=titles.map((title,index)=>{
     const start=new Date(today); start.setDate(start.getDate()+index)
     const end=new Date(start); end.setDate(end.getDate()+1)
