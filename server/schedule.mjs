@@ -14,6 +14,13 @@ const ROUGH_STAGES=[
   'Полы, стены и потолки',
   'Контроль качества и подготовка к приёмке',
 ]
+const WASTE_STAGES=[
+  'Подтверждение заказа и подачи',
+  'Вынос с объекта',
+  'Погрузка',
+  'Вывоз и утилизация',
+  'Подтверждение завершения',
+]
 
 function ownedOrder(accountId,publicNumber){
   const row=db.prepare(`
@@ -138,7 +145,7 @@ export function initializeSchedule(accountId,publicNumber,{plannedStart=null}={}
   if(Number.isNaN(base.getTime())) throw Object.assign(new Error('Некорректная дата начала'),{status:400})
   const now=nowIso()
   const payload=parseJSON(order.payload_json,{})
-  const stages=payload.serviceType==='rough'?ROUGH_STAGES:DEFAULT_STAGES
+  const stages=payload.serviceType==='rough'?ROUGH_STAGES:payload.serviceType==='waste'?WASTE_STAGES:DEFAULT_STAGES
 
   transaction(()=>{
     stages.forEach((title,index)=>{
