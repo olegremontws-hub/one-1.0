@@ -44,9 +44,12 @@ function makeSnapshot(row) {
     workTotal:Number(row.work_total||0),
     logisticsTotal:Number(row.logistics_total||0),
     total:Number(row.total||0),
+    serviceType:payload.serviceType||'demolition',
+    serviceLabel:payload.serviceLabel||'Демонтаж',
     priceBook:payload.priceBook||null,
     rooms:payload.rooms||[],
     demolition:payload.demolition||{},
+    roughRepair:payload.roughRepair||{},
     rates:payload.rates||{},
     logistics:payload.logistics||{},
   }
@@ -73,6 +76,10 @@ function summarizeChange(prev,next) {
   const prevDemolition=Object.keys(prev.demolition||{}).length
   const nextDemolition=Object.keys(next.demolition||{}).length
   if(prevDemolition!==nextDemolition) changes.demolition={label:'Позиции демонтажа',from:prevDemolition,to:nextDemolition}
+
+  const prevRough=Object.keys(prev.roughRepair||{}).length
+  const nextRough=Object.keys(next.roughRepair||{}).length
+  if(prevRough!==nextRough) changes.roughRepair={label:'Позиции чернового ремонта',from:prevRough,to:nextRough}
 
   const prevPrice=prev.priceBook?`${prev.priceBook.code} v${prev.priceBook.version}`:null
   const nextPrice=next.priceBook?`${next.priceBook.code} v${next.priceBook.version}`:null
