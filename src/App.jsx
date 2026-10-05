@@ -34,6 +34,7 @@ function Header({authenticated,onHome,onStore,onOrders,onCreateOrder,onLogout}) 
         {authenticated&&<button className="nav-link" type="button" onClick={onOrders}>Мои заказы</button>}
         {authenticated&&<button className="project-create-nav" type="button" onClick={onCreateOrder}>＋ Создать проект</button>}
         {authenticated&&<div className="header-balance"><span>Баланс</span><strong>— ₽</strong></div>}
+        {authenticated&&<button className="header-utility" type="button" title="Уведомления">✉</button>}
         {authenticated?<button className="header-profile" type="button" onClick={onLogout} title="Выйти">◎</button>:<span className="text-button">Войти</span>}
       </div>
     </div>
@@ -1501,7 +1502,7 @@ export default function App() {
     <Header authenticated={authenticated} onHome={()=>setScreen('home')} onStore={()=>setScreen('home')} onOrders={()=>setScreen('orders')} onCreateOrder={()=>setScreen('services')} onLogout={logout}/>
     <main className={screen==='auth'?'main':'main main--workspace'}>
       {screen==='auth'&&<section className="auth-card">{renderAuth()}</section>}
-      {screen==='home'&&<ClientHome profile={profile} orders={orders} onOpenOrder={openOrder} onCreateProject={()=>setScreen('services')} onWaste={createWasteOrder} onOrders={()=>setScreen('orders')}/>}
+      {screen==='home'&&<ClientHome profile={profile} orders={orders} onOpenOrder={openOrder} onCreateProject={()=>setScreen('services')} onDemolition={createOrder} onWaste={createWasteOrder} onRough={createRoughOrder} onOrders={()=>setScreen('orders')}/>}
       {screen==='services'&&<ServicesPage onDemolition={createOrder} onWaste={createWasteOrder} onRough={createRoughOrder}/>}
       {screen==='orders'&&<OrdersDashboard orders={orders} onCreateOrder={()=>setScreen('services')} onOpenOrder={openOrder} onEditOrder={editOrder} onDuplicate={duplicateOrder} onDelete={deleteOrder} onExport={exportData} onImport={importData} notice={notice} storageMode={remoteStatus}/>} 
       {screen==='create-order'&&<CreateOrder initialOrder={editingOrder} onCancel={()=>setScreen('orders')} onSave={saveOrder} pricing={pricing}/>}
