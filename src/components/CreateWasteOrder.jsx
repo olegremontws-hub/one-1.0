@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import AddressPicker from './AddressPicker.jsx'
 import {
   WASTE_REMOVAL_RATES, WASTE_REMOVAL_TYPES, calculateWasteRemoval, money, toNum,
 } from '../domain/model.js'
@@ -159,9 +160,9 @@ export default function CreateWasteOrder({initialOrder,onCancel,onSave}) {
         <h1>Откуда забираем?</h1>
         <p>Этаж, лифт и расстояние до автомобиля влияют только на вынос, если он нужен.</p>
       </div>
-      <div className="form-grid form-grid--order">
-        <label className="field field--wide"><span>Адрес объекта</span><input placeholder="Москва, улица, дом, квартира" value={address} onChange={e=>setAddress(e.target.value)}/></label>
-        <label className="field"><span>Этаж</span><input inputMode="numeric" placeholder="4" value={floor} onChange={e=>setFloor(e.target.value.replace(/\D/g,''))}/></label>
+      <AddressPicker value={address} onChange={setAddress}/>
+    <div className="form-grid form-grid--order">
+          <label className="field"><span>Этаж</span><input inputMode="numeric" placeholder="4" value={floor} onChange={e=>setFloor(e.target.value.replace(/\D/g,''))}/></label>
         <label className="field"><span>Расстояние до машины, м</span><input inputMode="numeric" placeholder="20" value={distance} onChange={e=>setDistance(e.target.value.replace(/\D/g,''))}/></label>
       </div>
 
