@@ -1,4 +1,4 @@
-import { db, nowIso, transaction, uid } from './db.mjs'
+import { db, nowIso, parseJSON, transaction, uid } from './db.mjs'
 
 const DEFAULT_STAGES=[
   'Подготовка объекта',
@@ -7,10 +7,17 @@ const DEFAULT_STAGES=[
   'Вывоз и утилизация',
   'Финальная уборка и подготовка к приёмке',
 ]
+const ROUGH_STAGES=[
+  'Подготовка и разметка',
+  'Черновая электрика и сантехника',
+  'Перегородки и основания',
+  'Полы, стены и потолки',
+  'Контроль качества и подготовка к приёмке',
+]
 
 function ownedOrder(accountId,publicNumber){
   const row=db.prepare(`
-    SELECT o.id AS order_id,o.public_number,o.status,o.total
+    SELECT o.id AS order_id,o.public_number,o.status,o.total,o.payload_json
     FROM orders o
     JOIN projects p ON p.id=o.project_id
     JOIN client_profiles cp ON cp.id=p.client_id
@@ -130,9 +137,11 @@ export function initializeSchedule(accountId,publicNumber,{plannedStart=null}={}
   const base=plannedStart?new Date(plannedStart+'T00:00:00'):new Date()
   if(Number.isNaN(base.getTime())) throw Object.assign(new Error('Некорректная дата начала'),{status:400})
   const now=nowIso()
+  const payload=parseJSON(order.payload_json,{})
+  const stages=payload.serviceType==='rough'?ROUGH_STAGES:DEFAULT_STAGES
 
   transaction(()=>{
-    DEFAULT_STAGES.forEach((title,index)=>{
+    stages.forEach((title,index)=>{
       const start=new Date(base)
       start.setDate(start.getDate()+index)
       const end=new Date(start)
