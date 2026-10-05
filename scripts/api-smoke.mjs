@@ -220,9 +220,56 @@ try {
   const quoteV2=await res.json()
   assert.equal(quoteV2.version,2)
 
+  res=await api('/api/orders/9001/documents',{
+    token,
+    method:'POST',
+    body:JSON.stringify({kind:'ks2'}),
+  })
+  assert.equal(res.status,409)
+
+  res=await api('/api/orders/9001/documents',{
+    token,
+    method:'POST',
+    body:JSON.stringify({kind:'offer'}),
+  })
+  assert.equal(res.status,201)
+  const offer=await res.json()
+  assert.equal(offer.kind,'offer')
+  assert.equal(offer.status,'draft')
+  assert.equal(offer.content.smartContract.algorithm,'SHA-256')
+  assert.equal(offer.content.smartContract.estimateHash.length,64)
+
+  res=await api(`/api/documents/${offer.id}`,{
+    token,
+    method:'PATCH',
+    body:JSON.stringify({status:'issued'}),
+  })
+  assert.equal(res.status,200)
+
+  res=await api(`/api/documents/${offer.id}`,{
+    token,
+    method:'PATCH',
+    body:JSON.stringify({status:'signed'}),
+  })
+  assert.equal(res.status,200)
+  const acceptedOffer=await res.json()
+  assert.equal(acceptedOffer.status,'signed')
+
+  res=await api('/api/orders/9001/documents',{
+    token,
+    method:'POST',
+    body:JSON.stringify({kind:'ks2'}),
+  })
+  assert.equal(res.status,201)
+  const ks2=await res.json()
+  assert.equal(ks2.kind,'ks2')
+  assert.equal(ks2.content.ks2.form,'КС-2')
+  assert.equal(ks2.content.ks2.okud,'0322005')
+  assert.equal(ks2.content.ks2.contractReference,offer.number)
+
   res=await api('/api/orders/9001/documents',{token})
   const documents=await res.json()
-  assert.equal(documents.length,2)
+  assert.equal(documents.length,4)
 
   res=await api('/api/orders/9001/payments',{token})
   assert.equal(res.status,200)
