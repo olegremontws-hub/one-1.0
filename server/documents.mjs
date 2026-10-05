@@ -1,4 +1,4 @@
-import { buildEstimateRows } from '../src/domain/model.js'
+import { buildEstimateRows, buildRoughEstimateRows } from '../src/domain/model.js'
 import { db, nowIso, parseJSON, uid } from './db.mjs'
 
 export const DOCUMENT_KINDS={
@@ -71,7 +71,9 @@ function profileSnapshot(row) {
 
 function orderSnapshot(row) {
   const payload=parseJSON(row.payload_json,{})
-  const estimate=buildEstimateRows(payload.rooms||[],payload.demolition||{},payload.rates||{})
+  const estimate=(payload.serviceType==='rough'
+    ? buildRoughEstimateRows(payload.rooms||[],payload.roughRepair||{},payload.rates||{})
+    : buildEstimateRows(payload.rooms||[],payload.demolition||{},payload.rates||{}))
     .map(item=>({
       code:item.code,
       name:item.name,
@@ -84,6 +86,8 @@ function orderSnapshot(row) {
 
   return {
     publicNumber:String(row.public_number),
+    serviceType:payload.serviceType||'demolition',
+    serviceLabel:payload.serviceLabel||'Демонтаж',
     status:row.status,
     objectType:row.object_type,
     objectLabel:row.object_label,
@@ -119,7 +123,9 @@ function documentBody(kind,client,order) {
   if(kind==='quote'){
     return {
       ...common,
-      purpose:'Предварительное коммерческое предложение по выбранному объёму демонтажных работ и логистике.',
+      purpose:order.serviceType==='rough'
+        ? 'Предварительное коммерческое предложение по выбранному объёму черновых ремонтных работ.'
+        : 'Предварительное коммерческое предложение по выбранному объёму демонтажных работ и логистике.',
       sections:['Клиент и объект','Состав работ','Стоимость работ','Отходы и логистика','Итоговая стоимость'],
     }
   }
