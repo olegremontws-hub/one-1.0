@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import CreateOrder from './components/CreateOrder.jsx'
 import CreateRoughOrder from './components/CreateRoughOrder.jsx'
 import CreateWasteOrder from './components/CreateWasteOrder.jsx'
+import ExecutionHierarchyMap from './components/ExecutionHierarchyMap.jsx'
 import {
   CLIENT_TYPES, ORDER_STATUSES, PROFILE_FIELDS, WASTE_REMOVAL_TYPES, buildEstimateRows, buildRoughEstimateRows, cloneOrder, money,
   statusLabel, validateOrder, validateProfileField,
@@ -993,8 +994,10 @@ function WorkProgressPanel({order,onStatusChange}){
 
     {error&&<div className="notice notice--error">{error}</div>}
 
+    <ExecutionHierarchyMap order={order} stages={stages} acceptance={acceptance}/>
+
     {stages.length===0?<div className="progress-empty">
-      <div><strong>График ещё не создан</strong><span>Создадим базовые этапы демонтажного заказа. Даты и ход можно менять по мере выполнения.</span></div>
+      <div><strong>График ещё не создан</strong><span>Создадим базовые этапы выбранной услуги. Даты и ход можно менять по мере выполнения.</span></div>
       <button className="button button--compact" type="button" disabled={busy==='init'} onClick={initialize}>{busy==='init'?'Создаём…':'Создать график работ'}</button>
     </div>:<>
       <div className="progress-summary">
