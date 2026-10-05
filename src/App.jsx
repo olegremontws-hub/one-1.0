@@ -613,10 +613,18 @@ const LOCAL_STAGE_TITLES=[
   'Вывоз и утилизация',
   'Финальная уборка и подготовка к приёмке',
 ]
+const ROUGH_STAGE_TITLES=[
+  'Подготовка и разметка',
+  'Черновая электрика и сантехника',
+  'Перегородки и основания',
+  'Полы, стены и потолки',
+  'Контроль качества и подготовка к приёмке',
+]
 
-function makeLocalSchedule(orderNumber){
+function makeLocalSchedule(orderNumber,serviceType='demolition'){
   const today=new Date()
-  const stages=LOCAL_STAGE_TITLES.map((title,index)=>{
+  const titles=serviceType==='rough'?ROUGH_STAGE_TITLES:LOCAL_STAGE_TITLES
+  const stages=titles.map((title,index)=>{
     const start=new Date(today); start.setDate(start.getDate()+index)
     const end=new Date(start); end.setDate(end.getDate()+1)
     return {
@@ -685,7 +693,7 @@ function WorkProgressPanel({order,onStatusChange}){
         const next=await initializeOrderSchedule(order.id,{})
         setData(next)
       } else {
-        saveLocal(makeLocalSchedule(order.id))
+        saveLocal(makeLocalSchedule(order.id,order.serviceType))
       }
     } catch(err) {
       setError(err instanceof Error?err.message:'Не удалось создать график')
