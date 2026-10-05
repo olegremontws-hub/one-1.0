@@ -1195,7 +1195,7 @@ function OrderDetails({order,onBack,onEdit,onStatusChange,onDuplicate,onDelete})
 export default function App() {
   const initialRemoteSession=useMemo(()=>REMOTE_ENABLED&&hasRemoteSession(),[])
   const storedAccount=useMemo(()=>REMOTE_ENABLED&&!initialRemoteSession?null:readJSON(ACCOUNT_KEY,null),[initialRemoteSession])
-  const [screen,setScreen]=useState(storedAccount?'services':'auth')
+  const [screen,setScreen]=useState(storedAccount?'home':'auth')
   const [step,setStep]=useState(1)
   const [method,setMethod]=useState(storedAccount?.method||'phone')
   const [contact,setContact]=useState(storedAccount?.contact||'')
@@ -1250,7 +1250,7 @@ export default function App() {
           setContact(remote.account.contact||'')
           setMethod(remote.account.method||'phone')
           writeJSON(ACCOUNT_KEY,remote.account)
-          setScreen('services')
+          setScreen('home')
           setRemoteReady(true)
         } else {
           setProfile(null)
@@ -1339,7 +1339,7 @@ export default function App() {
         writeJSON(ACCOUNT_KEY,remote.account)
         writeJSON(ORDERS_KEY,nextOrders)
         setRemoteReady(true)
-        setScreen('services')
+        setScreen('home')
       } else {
         setProfile(null)
         setOrders([])
@@ -1360,7 +1360,7 @@ export default function App() {
       const nextAccount={profile:value,clientType,contact,method}
       setProfile(value)
       writeJSON(ACCOUNT_KEY,nextAccount)
-      setScreen('services')
+      setScreen('home')
       return
     }
 
@@ -1378,7 +1378,7 @@ export default function App() {
       writeJSON(ORDERS_KEY,nextOrders)
       setRemoteReady(true)
       setRemoteStatus('online')
-      setScreen('services')
+      setScreen('home')
     } catch (error) {
       setAuthError(error instanceof Error?error.message:'Не удалось сохранить профиль')
     } finally {
@@ -1498,22 +1498,27 @@ export default function App() {
   const editingOrder=orders.find(order=>order.id===editingOrderId)
 
   return <div className="app-shell">
-    <Header authenticated={authenticated} onServices={()=>setScreen('services')} onOrders={()=>setScreen('orders')} onCreateOrder={()=>setScreen('services')} onLogout={logout}/>
+    <Header authenticated={authenticated} onHome={()=>setScreen('home')} onStore={()=>setScreen('home')} onOrders={()=>setScreen('orders')} onCreateOrder={()=>setScreen('services')} onLogout={logout}/>
     <main className={screen==='auth'?'main':'main main--workspace'}>
       {screen==='auth'&&<section className="auth-card">{renderAuth()}</section>}
+      {screen==='home'&&<ClientHome profile={profile} orders={orders} onOpenOrder={openOrder} onCreateProject={()=>setScreen('services')} onWaste={createWasteOrder} onOrders={()=>setScreen('orders')}/>}
       {screen==='services'&&<ServicesPage onDemolition={createOrder} onWaste={createWasteOrder} onRough={createRoughOrder}/>}
       {screen==='orders'&&<OrdersDashboard orders={orders} onCreateOrder={()=>setScreen('services')} onOpenOrder={openOrder} onEditOrder={editOrder} onDuplicate={duplicateOrder} onDelete={deleteOrder} onExport={exportData} onImport={importData} notice={notice} storageMode={remoteStatus}/>} 
       {screen==='create-order'&&<CreateOrder initialOrder={editingOrder} onCancel={()=>setScreen('orders')} onSave={saveOrder} pricing={pricing}/>}
       {screen==='create-rough-order'&&<CreateRoughOrder initialOrder={editingOrder} onCancel={()=>setScreen('services')} onSave={saveOrder}/>}
-      {screen==='create-waste-order'&&<CreateWasteOrder initialOrder={editingOrder} onCancel={()=>setScreen('services')} onSave={saveOrder}/>}
+      {screen==='create-waste-order'&&<CreateWasteOrder initialOrder={editingOrder} onCancel={()=>setScreen('home')} onSave={saveOrder}/>}
       {screen==='order-detail'&&<OrderDetails order={selectedOrder} onBack={()=>setScreen('orders')} onEdit={()=>selectedOrder&&editOrder(selectedOrder.id)} onStatusChange={status=>selectedOrder&&changeStatus(selectedOrder.id,status)} onDuplicate={()=>selectedOrder&&duplicateOrder(selectedOrder.id)} onDelete={()=>selectedOrder&&deleteOrder(selectedOrder.id)}/>}
     </main>
     <footer className="footer">
       <div className="footer__brand">
-        <img src={`${import.meta.env.BASE_URL}bath-dream-logo.svg`} alt="Bath Dream"/>
-        <span>Ремонт и сервис с прозрачной сметой</span>
+        <img src={`${import.meta.env.BASE_URL}aw-home-logo.svg`} alt="AW HOME"/>
+        <span>© AW HOME · клиентский сервис</span>
       </div>
-      <span>{authenticated?'Клиентский кабинет · рабочая MVP':'Клиентский модуль · MVP'}</span>
+      <div className="footer__contacts">
+        <span>8 (800) 333 88 37</span>
+        <span>Ежедневно 09:00–21:00</span>
+        <span>info@bath-dream.ru</span>
+      </div>
     </footer>
   </div>
 }
