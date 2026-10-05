@@ -50,6 +50,7 @@ function makeSnapshot(row) {
     rooms:payload.rooms||[],
     demolition:payload.demolition||{},
     roughRepair:payload.roughRepair||{},
+    wasteRemoval:payload.wasteRemoval||{},
     rates:payload.rates||{},
     logistics:payload.logistics||{},
   }
@@ -80,6 +81,13 @@ function summarizeChange(prev,next) {
   const prevRough=Object.keys(prev.roughRepair||{}).length
   const nextRough=Object.keys(next.roughRepair||{}).length
   if(prevRough!==nextRough) changes.roughRepair={label:'Позиции чернового ремонта',from:prevRough,to:nextRough}
+
+  const prevWaste=prev.wasteRemoval||{}
+  const nextWaste=next.wasteRemoval||{}
+  const prevWasteVolume=Number(prevWaste.calculation?.volume||0)
+  const nextWasteVolume=Number(nextWaste.calculation?.volume||0)
+  if(prevWasteVolume!==nextWasteVolume) changes.wasteRemoval={label:'Объём мусора',from:prevWasteVolume,to:nextWasteVolume}
+  if((prevWaste.date||null)!==(nextWaste.date||null)) changes.wasteDate={label:'Дата вывоза',from:prevWaste.date||null,to:nextWaste.date||null}
 
   const prevPrice=prev.priceBook?`${prev.priceBook.code} v${prev.priceBook.version}`:null
   const nextPrice=next.priceBook?`${next.priceBook.code} v${next.priceBook.version}`:null
