@@ -215,6 +215,74 @@ export const WASTE_RULES = {
   'DEM-FU-004':{type:'Столешница',m3:.04,kg:18,bag:false},
 }
 
+
+export const WASTE_REMOVAL_TYPES = [
+  {id:'bags',title:'Мешки',icon:'●'},
+  {id:'heavy',title:'Кирпич и бетон',icon:'◆'},
+  {id:'tile',title:'Плитка и штукатурка',icon:'▱'},
+  {id:'wood',title:'Дерево',icon:'▥'},
+  {id:'plumbing',title:'Сантехника',icon:'◉'},
+  {id:'mixed',title:'Смешанный мусор',icon:'+'},
+]
+
+export const WASTE_REMOVAL_RATES = {
+  bagVolume:.025,
+  loadingMin:2500,
+  loadingPerM3:900,
+  carryPerM3Lift:2200,
+  carryPerM3NoLiftBase:2600,
+  carryPerFloorPerM3:180,
+  disposalMin:3000,
+  disposalPerM3:2200,
+  distanceTiers:[
+    {max:20,price:0,label:'До 20 метров'},
+    {max:50,price:1500,label:'20–50 метров'},
+    {max:9999,price:3000,label:'Более 50 метров'},
+  ],
+  transportTiers:[
+    {max:1,price:6500,label:'Малый вывоз до 1 м³'},
+    {max:4,price:12000,label:'Газель / малый контейнер до 4 м³'},
+    {max:8,price:19000,label:'Контейнер до 8 м³'},
+    {max:20,price:36000,label:'Контейнер до 20 м³'},
+  ],
+}
+
+export function wasteRemovalVolume({amountMode='bags',bags=0,volume=0,visualSize='small'}={}) {
+  if(amountMode==='m3') return Math.max(0,toNum(volume))
+  if(amountMode==='unknown') return visualSize==='large'?8:visualSize==='medium'?4:1
+  return Math.max(0,toNum(bags))*WASTE_REMOVAL_RATES.bagVolume
+}
+
+export function calculateWasteRemoval(input={},rates=WASTE_REMOVAL_RATES) {
+  const volume=wasteRemovalVolume(input)
+  const bags=input.amountMode==='bags'
+    ? Math.max(0,Math.ceil(toNum(input.bags)))
+    : Math.max(0,Math.ceil(volume/rates.bagVolume))
+  const floor=Math.max(1,toNum(input.floor)||1)
+  const carryNeeded=input.carryMode==='team'
+  const distance=Math.max(0,toNum(input.distance)||0)
+  const selectedTypes=Array.isArray(input.types)?input.types:[]
+  const heavy=selectedTypes.includes('heavy')||selectedTypes.includes('tile')
+  const disposalMultiplier=heavy?1.15:selectedTypes.includes('mixed')?1.05:1
+
+  const carry=carryNeeded
+    ? volume*(input.lift==='yes'
+      ? rates.carryPerM3Lift
+      : rates.carryPerM3NoLiftBase+floor*rates.carryPerFloorPerM3)
+    : 0
+  const loading=volume>0?Math.max(rates.loadingMin,volume*rates.loadingPerM3):0
+  const transport=volume>0?transportFor(volume,{transportTiers:rates.transportTiers}):{price:0,label:'Не требуется'}
+  const disposal=volume>0?Math.max(rates.disposalMin,volume*rates.disposalPerM3*disposalMultiplier):0
+  const distanceTier=rates.distanceTiers.find(item=>distance<=item.max)||rates.distanceTiers[rates.distanceTiers.length-1]
+  const distanceFee=carryNeeded?distanceTier.price:0
+  const total=carry+loading+transport.price+disposal+distanceFee
+
+  return {
+    volume,bags,carry,loading,transport:transport.price,transportLabel:transport.label,
+    disposal,distanceFee,distanceLabel:distanceTier.label,total,
+  }
+}
+
 export const LOGISTICS_RATES = {
   bagPrice:40,
   carryBagLift:120,
@@ -363,15 +431,24 @@ export function calculateWasteAndLogistics(rows,{floor=1,lift='yes',rates=LOGIST
 
 export function validateOrder(order) {
   const errors=[]
-  if(!order?.objectType) errors.push('Не выбран тип объекта')
   if(!String(order?.address||'').trim()) errors.push('Не указан адрес объекта')
-  if(!Array.isArray(order?.rooms) || order.rooms.length===0) errors.push('Не добавлены помещения')
-  ;(order?.rooms||[]).forEach((room,index)=>{
-    const calc=roomCalc(room)
-    if(!room.type) errors.push(`Помещение ${index+1}: не выбран тип`)
-    if(calc.floor<=0) errors.push(`Помещение ${index+1}: площадь должна быть больше 0`)
-    if(toNum(room.height)<=0) errors.push(`Помещение ${index+1}: высота должна быть больше 0`)
-  })
+
+  if(order?.serviceType==='waste'){
+    if(!Array.isArray(order?.wasteRemoval?.types)||order.wasteRemoval.types.length===0) errors.push('Не выбран тип строительного мусора')
+    if(toNum(order?.wasteRemoval?.calculation?.volume)<=0) errors.push('Не указан объём строительного мусора')
+    if(!order?.wasteRemoval?.date) errors.push('Не выбрана дата вывоза')
+    if(!order?.wasteRemoval?.timeSlot) errors.push('Не выбран интервал вывоза')
+  } else {
+    if(!order?.objectType) errors.push('Не выбран тип объекта')
+    if(!Array.isArray(order?.rooms) || order.rooms.length===0) errors.push('Не добавлены помещения')
+    ;(order?.rooms||[]).forEach((room,index)=>{
+      const calc=roomCalc(room)
+      if(!room.type) errors.push(`Помещение ${index+1}: не выбран тип`)
+      if(calc.floor<=0) errors.push(`Помещение ${index+1}: площадь должна быть больше 0`)
+      if(toNum(room.height)<=0) errors.push(`Помещение ${index+1}: высота должна быть больше 0`)
+    })
+  }
+
   if(toNum(order?.total)<0) errors.push('Итог заказа не может быть отрицательным')
   return errors
 }
