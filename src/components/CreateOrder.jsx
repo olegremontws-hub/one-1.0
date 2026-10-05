@@ -25,7 +25,7 @@ function PrimaryButton({children,disabled=false,onClick}) {
   return <button className="button button--primary" disabled={disabled} onClick={onClick} type="button">{children}</button>
 }
 
-function RoomCard({room,index,onChange,onRemove,canRemove}) {
+export function RoomCard({room,index,onChange,onRemove,canRemove}) {
   const calc=roomCalc(room)
   const set=(key,value)=>onChange({...room,[key]:value})
 
