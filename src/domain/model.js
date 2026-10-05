@@ -110,6 +110,66 @@ export const DEMO_RATES = {
   'DEM-FU-004':1000,'DEM-OTHER-001':1000,
 }
 
+
+export const ROUGH_CATALOG = [
+  { id:'floor', title:'Пол', icon:'▱', groups:[{ title:'Основание пола', items:[
+    ['RUF-FL-001','Грунтовка основания пола','м²'],
+    ['RUF-FL-002','Устройство стяжки','м²'],
+    ['RUF-FL-003','Наливной пол','м²'],
+    ['RUF-FL-004','Гидроизоляция пола','м²'],
+  ]}]},
+  { id:'walls', title:'Стены', icon:'▥', groups:[{ title:'Подготовка стен', items:[
+    ['RUF-WL-001','Грунтовка стен','м²'],
+    ['RUF-WL-002','Штукатурка стен по маякам','м²'],
+    ['RUF-WL-003','Базовая шпаклёвка стен','м²'],
+    ['RUF-WL-004','Армирование стеклохолстом','м²'],
+  ]}]},
+  { id:'ceiling', title:'Потолок', icon:'═', groups:[{ title:'Черновой потолок', items:[
+    ['RUF-CL-001','Грунтовка потолка','м²'],
+    ['RUF-CL-002','Штукатурка потолка','м²'],
+    ['RUF-CL-003','Базовая шпаклёвка потолка','м²'],
+    ['RUF-CL-004','Каркас и обшивка ГКЛ','м²'],
+  ]}]},
+  { id:'partitions', title:'Перегородки', icon:'▤', groups:[{ title:'Новые конструкции', items:[
+    ['RUF-PT-001','Перегородка из ГКЛ','м²'],
+    ['RUF-PT-002','Перегородка из ПГП / газоблока','м²'],
+    ['RUF-PT-003','Формирование дверного проёма','шт'],
+  ]}]},
+  { id:'electric', title:'Электрика', icon:'ϟ', groups:[{ title:'Черновая электрика', items:[
+    ['RUF-EL-001','Штробление под кабель','м.п.'],
+    ['RUF-EL-002','Прокладка кабеля','м.п.'],
+    ['RUF-EL-003','Подрозетник / установочное место','шт'],
+    ['RUF-EL-004','Монтаж электрического щита','шт'],
+  ]}]},
+  { id:'plumbing', title:'Сантехника', icon:'◉', groups:[{ title:'Черновая сантехника', items:[
+    ['RUF-PL-001','Разводка водоснабжения','м.п.'],
+    ['RUF-PL-002','Разводка канализации','м.п.'],
+    ['RUF-PL-003','Точка водоснабжения','шт'],
+    ['RUF-PL-004','Монтаж инсталляции','шт'],
+  ]}]},
+]
+
+export const ROUGH_RATES = {
+  'RUF-FL-001':180,'RUF-FL-002':1400,'RUF-FL-003':900,'RUF-FL-004':850,
+  'RUF-WL-001':160,'RUF-WL-002':1150,'RUF-WL-003':650,'RUF-WL-004':550,
+  'RUF-CL-001':180,'RUF-CL-002':1350,'RUF-CL-003':750,'RUF-CL-004':1900,
+  'RUF-PT-001':2100,'RUF-PT-002':2300,'RUF-PT-003':3500,
+  'RUF-EL-001':650,'RUF-EL-002':350,'RUF-EL-003':850,'RUF-EL-004':9500,
+  'RUF-PL-001':1600,'RUF-PL-002':1800,'RUF-PL-003':2800,'RUF-PL-004':6500,
+}
+
+export const ROUGH_AUTO_QTY = {
+  'RUF-FL-001':'floor','RUF-FL-002':'floor','RUF-FL-003':'floor','RUF-FL-004':'floor',
+  'RUF-WL-001':'netWalls','RUF-WL-002':'netWalls','RUF-WL-003':'netWalls','RUF-WL-004':'netWalls',
+  'RUF-CL-001':'ceiling','RUF-CL-002':'ceiling','RUF-CL-003':'ceiling','RUF-CL-004':'ceiling',
+}
+
+export const roughItemIndex = Object.fromEntries(
+  ROUGH_CATALOG.flatMap(category => category.groups.flatMap(group =>
+    group.items.map(([code,name,unit]) => [code,{code,name,unit,category:category.title,group:group.title}])
+  ))
+)
+
 export const DEMO_AUTO_QTY = {
   'DEM-FL-001':'floor','DEM-FL-002':'floor','DEM-FL-004':'floor','DEM-FL-006':'floor','DEM-FL-007':'floor','DEM-FL-008':'floor',
   'DEM-FL-012':'perimeter','DEM-WL-001':'netWalls','DEM-WL-002':'netWalls','DEM-WL-003':'netWalls',
@@ -221,6 +281,12 @@ export function suggestedQuantity(code,room) {
   return toNum(roomCalc(room)[source])
 }
 
+export function suggestedRoughQuantity(code,room) {
+  const source=ROUGH_AUTO_QTY[code]
+  if(!source) return 0
+  return toNum(roomCalc(room)[source])
+}
+
 export function buildEstimateRows(rooms,selections,rates=DEMO_RATES) {
   return Object.entries(selections || {}).map(([key,quantity])=>{
     const split=key.indexOf(':')
@@ -229,6 +295,19 @@ export function buildEstimateRows(rooms,selections,rates=DEMO_RATES) {
     const room=rooms.find(item=>item.id===roomId)
     const item=demoItemIndex[code] || {code,name:code,unit:'шт',category:'Другое'}
     const rate=toNum(rates[code] ?? DEMO_RATES[code])
+    return {...item,roomId,roomName:room?.type||'Помещение',quantity:toNum(quantity),rate,sum:toNum(quantity)*rate}
+  }).filter(row=>row.quantity>0)
+}
+
+
+export function buildRoughEstimateRows(rooms,selections,rates=ROUGH_RATES) {
+  return Object.entries(selections || {}).map(([key,quantity])=>{
+    const split=key.indexOf(':')
+    const roomId=key.slice(0,split)
+    const code=key.slice(split+1)
+    const room=rooms.find(item=>item.id===roomId)
+    const item=roughItemIndex[code] || {code,name:code,unit:'шт',category:'Другое'}
+    const rate=toNum(rates[code] ?? ROUGH_RATES[code])
     return {...item,roomId,roomName:room?.type||'Помещение',quantity:toNum(quantity),rate,sum:toNum(quantity)*rate}
   }).filter(row=>row.quantity>0)
 }
