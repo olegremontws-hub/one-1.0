@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import {
-  roomCalc, buildEstimateRows, calculateWasteAndLogistics, cloneOrder, validateOrder, DEMO_RATES,
+  roomCalc, buildEstimateRows, buildRoughEstimateRows, calculateWasteAndLogistics, cloneOrder, validateOrder,
+  DEMO_RATES, ROUGH_RATES, suggestedRoughQuantity,
 } from '../src/domain/model.js'
 
 const room={
@@ -61,3 +62,33 @@ const cloned=cloneOrder(validOrder,'1924')
 assert.equal(cloned.id,'1924')
 assert.equal(cloned.status,'draft')
 assert.notEqual(cloned,validOrder)
+
+
+const roughSelections={
+  'room-test:RUF-FL-002':20,
+  'room-test:RUF-WL-002':50.01,
+  'room-test:RUF-CL-001':20,
+}
+const roughRows=buildRoughEstimateRows([room],roughSelections,ROUGH_RATES)
+assert.equal(roughRows.length,3)
+assert(roughRows.every(row=>row.sum>0))
+assert.equal(Number(suggestedRoughQuantity('RUF-FL-002',room).toFixed(2)),20)
+assert.equal(Number(suggestedRoughQuantity('RUF-WL-002',room).toFixed(2)),50.01)
+
+const roughTotal=roughRows.reduce((sum,row)=>sum+row.sum,0)
+const roughOrder={
+  id:'1925',
+  serviceType:'rough',
+  serviceLabel:'Черновой ремонт',
+  objectType:'secondary',
+  address:'Москва, тестовый адрес',
+  rooms:[{...room,calc:geo}],
+  roughRepair:roughSelections,
+  rates:ROUGH_RATES,
+  logistics:{total:0},
+  workTotal:roughTotal,
+  total:roughTotal,
+  status:'calculated',
+}
+assert.deepEqual(validateOrder(roughOrder),[])
+console.log('Bath Dream rough repair smoke test passed')
