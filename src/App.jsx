@@ -246,6 +246,8 @@ function OrdersDashboard({orders,onCreateOrder,onOpenOrder,onEditOrder,onDuplica
 
 
 const DOCUMENT_KIND_META={
+  offer:{label:'Договор-оферта / Смарт-смета',short:'Оферта'},
+  ks2:{label:'Акт по форме КС-2',short:'КС-2'},
   quote:{label:'Коммерческое предложение',short:'КП'},
   contract:{label:'Договор',short:'Договор'},
   act:{label:'Акт выполненных работ',short:'Акт'},
@@ -257,13 +259,155 @@ const DOCUMENT_STATUS_LABELS={
   cancelled:'Отменён',
 }
 
-function DocumentsPanel({orderNumber}) {
-  const [documents,setDocuments]=useState([])
+async function sha256Text(value){
+  if(!globalThis.crypto?.subtle) return 'local-preview'
+  const bytes=new TextEncoder().encode(value)
+  const digest=await globalThis.crypto.subtle.digest('SHA-256',bytes)
+  return Array.from(new Uint8Array(digest)).map(byte=>byte.toString(16).padStart(2,'0')).join('')
+}
+
+function localDocumentEstimate(order){
+  if(order.serviceType==='waste'){
+    const calc=order.wasteRemoval?.calculation||{}
+    return [
+      ['WST-CARRY','Вынос с объекта','услуга',1,Number(calc.carry||0)],
+      ['WST-LOAD','Погрузка','услуга',1,Number(calc.loading||0)],
+      ['WST-TRN','Транспорт','услуга',1,Number(calc.transport||0)],
+      ['WST-DSP','Утилизация','услуга',1,Number(calc.disposal||0)],
+      ['WST-DIST','Дальний пронос','услуга',1,Number(calc.distanceFee||0)],
+    ].filter(([, , , ,sum])=>sum>0).map(([code,name,unit,quantity,sum])=>({code,name,roomName:'Объект',unit,quantity,rate:sum,sum}))
+  }
+  return order.serviceType==='rough'
+    ? buildRoughEstimateRows(order.rooms||[],order.roughRepair||{},order.rates||{})
+    : buildEstimateRows(order.rooms||[],order.demolition||{},order.rates||{})
+}
+
+async function makeLocalDocument(kind,order,existing=[]){
+  const meta=DOCUMENT_KIND_META[kind]
+  const version=existing.filter(item=>item.kind===kind).length+1
+  const prefix=kind==='offer'?'ОФ':kind==='ks2'?'КС2':kind==='quote'?'КП':kind==='contract'?'ДОГ':'АКТ'
+  const number=`${prefix}-${order.id}-${String(version).padStart(2,'0')}`
+  const estimate=localDocumentEstimate(order).map(item=>({
+    code:item.code,name:item.name,room:item.roomName||'Объект',unit:item.unit,
+    quantity:Number(item.quantity||0),rate:Number(item.rate||0),sum:Number(item.sum||0),
+  }))
+  const canonical=JSON.stringify({
+    publicNumber:String(order.id),serviceType:order.serviceType||'demolition',
+    address:order.address||'',estimate,total:Number(order.total||0),priceBook:order.priceBook||null,
+  })
+  const hash=await sha256Text(canonical)
+  const now=new Date().toISOString()
+  const baseOrder={
+    publicNumber:String(order.id),
+    serviceType:order.serviceType||'demolition',
+    serviceLabel:order.serviceLabel||'Демонтаж',
+    objectLabel:order.objectLabel||order.serviceLabel||'Объект',
+    address:order.address||'',
+    floor:order.floor||'',
+    lift:order.lift||'yes',
+    estimate,
+    totals:{work:Number(order.workTotal||0),logistics:Number(order.logistics?.total||0),total:Number(order.total||0)},
+    priceBook:order.priceBook||null,
+  }
+  const common={
+    generatedAt:now,
+    client:{displayName:'Клиент Bath Dream'},
+    order:baseOrder,
+    smartContract:{
+      estimateHash:hash,algorithm:'SHA-256',immutableSnapshot:true,
+      acceptanceRule:'Принятие оферты фиксирует эту версию сметы. Изменения оформляются новой версией.',
+    },
+    disclaimer:'Черновик Bath Dream. Перед коммерческим использованием договор-оферта и печатная форма должны быть проверены юристом и бухгалтером.',
+  }
+
+  let extra={}
+  if(kind==='offer'){
+    extra={
+      purpose:'Договор-оферта на выполнение услуг по зафиксированной смете Bath Dream.',
+      offer:{
+        subject:`Услуга «${baseOrder.serviceLabel}» на объекте ${baseOrder.address||'из заказа'} в составе зафиксированной сметы.`,
+        price:baseOrder.totals.total,
+        acceptance:'Акцепт выполняется кнопкой «Принять оферту». Фиксируются версия документа, смета, сумма и время принятия.',
+        changeRule:'Любое изменение состава, количества, ставки или суммы требует новой версии сметы и оферты.',
+      },
+      sections:['Стороны и реквизиты','Предмет оферты','Зафиксированная смета','Цена и расчёты','Акцепт','Приёмка результата'],
+    }
+  } else if(kind==='ks2'){
+    const signedOffer=existing.find(item=>item.kind==='offer'&&item.status==='signed')
+    const rows=estimate.map((item,index)=>({
+      number:index+1,estimatePosition:index+1,name:item.name,rateCode:item.code,
+      unit:item.unit,quantity:item.quantity,unitPrice:item.rate,amount:item.sum,
+    }))
+    extra={
+      purpose:'Акт о приёмке выполненных работ, сформированный по структуре формы КС-2.',
+      ks2:{
+        form:'КС-2',okud:'0322005',documentNumber:number,date:now.slice(0,10),
+        customer:'Клиент Bath Dream',contractor:'Bath Dream',
+        object:`${baseOrder.objectLabel} · ${baseOrder.address||'—'}`,
+        contractReference:signedOffer?.number||null,
+        estimatedContractValue:baseOrder.totals.total,
+        reportingPeriod:{from:(order.createdAt||now).slice(0,10),to:now.slice(0,10)},
+        rows,total:rows.reduce((sum,row)=>sum+row.amount,0),
+      },
+      sections:['Заказчик и подрядчик','Объект','Договорная стоимость','Отчётный период','Таблица выполненных работ','Итого','Сдал / Принял'],
+    }
+  } else {
+    extra={
+      purpose:kind==='quote'?'Предварительное коммерческое предложение по заказу Bath Dream':kind==='contract'?'Договор на выполнение согласованного объёма работ':'Акт выполненных работ по заказу Bath Dream.',
+      sections:['Клиент и объект','Состав работ','Стоимость','Итог'],
+    }
+  }
+
+  return {
+    id:`local-doc-${Date.now()}-${kind}`,kind,number,version,status:'draft',
+    title:meta.label,content:{...common,...extra},createdAt:now,updatedAt:now,issuedAt:null,signedAt:null,
+  }
+}
+
+function Ks2Preview({data}){
+  if(!data) return null
+  return <div className="ks2-sheet">
+    <div className="ks2-sheet__head">
+      <div><strong>АКТ О ПРИЁМКЕ ВЫПОЛНЕННЫХ РАБОТ</strong><span>Форма № КС-2 · ОКУД {data.okud}</span></div>
+      <div><span>№ {data.documentNumber||'—'}</span><span>{data.date||'—'}</span></div>
+    </div>
+    <div className="ks2-sheet__meta">
+      <p><b>Заказчик:</b> {data.customer||'—'}</p>
+      <p><b>Подрядчик:</b> {data.contractor||'—'}</p>
+      <p><b>Объект:</b> {data.object||'—'}</p>
+      <p><b>Основание:</b> {data.contractReference||'договор / оферта не указаны'}</p>
+      <p><b>Договорная стоимость:</b> {money(data.estimatedContractValue||0)} ₽</p>
+      <p><b>Отчётный период:</b> {data.reportingPeriod?.from||'—'} — {data.reportingPeriod?.to||'—'}</p>
+    </div>
+    <div className="ks2-table">
+      <div className="ks2-row ks2-row--head"><span>№</span><span>Работа</span><span>Расценка</span><span>Ед.</span><span>Кол-во</span><span>Цена</span><span>Стоимость</span></div>
+      {(data.rows||[]).map(row=><div className="ks2-row" key={row.number}>
+        <span>{row.number}</span><span>{row.name}</span><span>{row.rateCode||'—'}</span><span>{row.unit}</span>
+        <span>{Number(row.quantity||0).toFixed(2)}</span><span>{money(row.unitPrice||0)}</span><strong>{money(row.amount||0)} ₽</strong>
+      </div>)}
+    </div>
+    <div className="ks2-sheet__total"><span>Всего по акту</span><strong>{money(data.total||0)} ₽</strong></div>
+    <div className="ks2-signatures"><span>Сдал ____________________</span><span>Принял ____________________</span></div>
+  </div>
+}
+
+function DocumentsPanel({order,onStatusChange}) {
+  const orderNumber=order.id
+  const localKey='bathdream.documents.'+orderNumber
+  const [documents,setDocuments]=useState(()=>REMOTE_ENABLED?[]:readJSON(localKey,[]))
   const [busy,setBusy]=useState('')
   const [error,setError]=useState('')
 
+  const persistLocal=next=>{
+    setDocuments(next)
+    writeJSON(localKey,next)
+  }
+
   const refresh=async()=>{
-    if(!REMOTE_ENABLED) return
+    if(!REMOTE_ENABLED){
+      setDocuments(readJSON(localKey,[]))
+      return
+    }
     setError('')
     try {
       const list=await loadOrderDocuments(orderNumber)
@@ -278,8 +422,13 @@ function DocumentsPanel({orderNumber}) {
   const create=async kind=>{
     setBusy('create-'+kind);setError('')
     try {
-      const created=await createOrderDocument(orderNumber,kind)
-      setDocuments(current=>[created,...current])
+      if(REMOTE_ENABLED){
+        const created=await createOrderDocument(orderNumber,kind)
+        setDocuments(current=>[created,...current])
+      } else {
+        const created=await makeLocalDocument(kind,order,documents)
+        persistLocal([created,...documents])
+      }
     } catch (err) {
       setError(err instanceof Error?err.message:'Не удалось создать документ')
     } finally {
@@ -290,8 +439,15 @@ function DocumentsPanel({orderNumber}) {
   const changeStatus=async(doc,status)=>{
     setBusy(doc.id);setError('')
     try {
-      const updated=await updateRemoteDocumentStatus(doc.id,status)
-      setDocuments(current=>current.map(item=>item.id===doc.id?updated:item))
+      if(REMOTE_ENABLED){
+        const updated=await updateRemoteDocumentStatus(doc.id,status)
+        setDocuments(current=>current.map(item=>item.id===doc.id?updated:item))
+      } else {
+        const now=new Date().toISOString()
+        const updated={...doc,status,updatedAt:now,issuedAt:status==='issued'?(doc.issuedAt||now):doc.issuedAt,signedAt:status==='signed'?(doc.signedAt||now):doc.signedAt}
+        persistLocal(documents.map(item=>item.id===doc.id?updated:item))
+      }
+      if(doc.kind==='offer'&&status==='signed') onStatusChange?.('contract')
     } catch (err) {
       setError(err instanceof Error?err.message:'Не удалось изменить статус документа')
     } finally {
@@ -299,22 +455,25 @@ function DocumentsPanel({orderNumber}) {
     }
   }
 
-  if(!REMOTE_ENABLED) return <section className="detail-card detail-card--wide documents-block">
-    <p className="eyebrow">Документы</p>
-    <h2>КП · Договор · Акт</h2>
-    <p className="muted">Документы доступны в full-stack режиме с серверной БД.</p>
-  </section>
-
   return <section className="detail-card detail-card--wide documents-block">
     <div className="documents-head">
-      <div><p className="eyebrow">Документы</p><h2>КП · Договор · Акт</h2><p className="muted">Каждое формирование создаёт новую неизменяемую версию со снимком клиента, заказа, сметы и прайса.</p></div>
+      <div>
+        <p className="eyebrow">Документы и смарт-смета</p>
+        <h2>Оферта · КС-2 · Документы заказа</h2>
+        <p className="muted">Оферта фиксирует снимок сметы и её SHA-256. После акцепта изменения оформляются только новой версией.</p>
+      </div>
       <button className="button button--soft" type="button" onClick={refresh}>Обновить</button>
+    </div>
+
+    <div className="smart-contract-strip">
+      <div><span>Сценарий</span><strong>Смета → Оферта → Акцепт → Выполнение → КС-2</strong></div>
+      <small>{REMOTE_ENABLED?'Серверная фиксация документов':'Preview: документы сохраняются локально в браузере'}</small>
     </div>
 
     <div className="document-create-row">
       {Object.entries(DOCUMENT_KIND_META).map(([kind,meta])=><button
         key={kind}
-        className="button button--compact"
+        className={kind==='offer'||kind==='ks2'?'button button--compact document-create-primary':'button button--compact'}
         type="button"
         disabled={Boolean(busy)}
         onClick={()=>create(kind)}
@@ -323,39 +482,60 @@ function DocumentsPanel({orderNumber}) {
 
     {error&&<div className="notice notice--error">{error}</div>}
 
-    {documents.length===0?<div className="document-empty">Документов по заказу пока нет.</div>:
+    {documents.length===0?<div className="document-empty">Сформируйте договор-оферту, чтобы зафиксировать текущую смету.</div>:
     <div className="document-list">{documents.map(doc=>{
       const snapshot=doc.content||{}
-      const order=snapshot.order||{}
+      const snapshotOrder=snapshot.order||{}
+      const isOffer=doc.kind==='offer'
+      const isKs2=doc.kind==='ks2'
       return <article className="document-card" key={doc.id}>
         <div className="document-card__head">
           <div><strong>{doc.title}</strong><span>{doc.number} · версия {doc.version}</span></div>
-          <span className={'document-status document-status--'+doc.status}>{DOCUMENT_STATUS_LABELS[doc.status]||doc.status}</span>
+          <span className={'document-status document-status--'+doc.status}>{isOffer&&doc.status==='signed'?'Акцептована':DOCUMENT_STATUS_LABELS[doc.status]||doc.status}</span>
         </div>
 
         <dl className="document-meta">
-          <div><dt>Заказ</dt><dd>№{order.publicNumber||orderNumber}</dd></div>
-          <div><dt>Сумма</dt><dd>{money(order.totals?.total||0)} ₽</dd></div>
+          <div><dt>Заказ</dt><dd>№{snapshotOrder.publicNumber||orderNumber}</dd></div>
+          <div><dt>Сумма</dt><dd>{money(snapshotOrder.totals?.total||0)} ₽</dd></div>
           <div><dt>Создан</dt><dd>{new Date(doc.createdAt).toLocaleString('ru-RU')}</dd></div>
-          <div><dt>Прайс</dt><dd>{order.priceBook?`${order.priceBook.code} v${order.priceBook.version}`:'—'}</dd></div>
+          <div><dt>Прайс</dt><dd>{snapshotOrder.priceBook?`${snapshotOrder.priceBook.code} v${snapshotOrder.priceBook.version}`:'—'}</dd></div>
         </dl>
 
-        <details className="document-preview">
+        {snapshot.smartContract?.estimateHash&&<div className="smart-hash">
+          <span>SHA-256 сметы</span>
+          <code>{snapshot.smartContract.estimateHash}</code>
+          <small>{snapshot.smartContract.acceptanceRule}</small>
+        </div>}
+
+        {isOffer&&snapshot.offer&&<div className="offer-preview">
+          <h3>Договор-оферта</h3>
+          <p><b>Предмет:</b> {snapshot.offer.subject}</p>
+          <p><b>Цена:</b> {money(snapshot.offer.price||0)} ₽</p>
+          <p><b>Акцепт:</b> {snapshot.offer.acceptance}</p>
+          <p><b>Изменения:</b> {snapshot.offer.changeRule}</p>
+        </div>}
+
+        {isKs2&&<Ks2Preview data={snapshot.ks2}/>}
+
+        {!isOffer&&!isKs2&&<details className="document-preview">
           <summary>Состав документа</summary>
           <div className="document-preview__body">
             <p><strong>Клиент:</strong> {snapshot.client?.displayName||'—'}</p>
-            <p><strong>Объект:</strong> {order.objectLabel||'—'} · {order.address||'—'}</p>
+            <p><strong>Объект:</strong> {snapshotOrder.objectLabel||'—'} · {snapshotOrder.address||'—'}</p>
             <p><strong>Назначение:</strong> {snapshot.purpose||'—'}</p>
             <div className="document-preview__sections">{(snapshot.sections||[]).map(section=><span key={section}>{section}</span>)}</div>
-            <p className="document-disclaimer">{snapshot.disclaimer}</p>
           </div>
-        </details>
+        </details>}
+
+        <p className="document-disclaimer">{snapshot.disclaimer}</p>
 
         <div className="document-actions">
           {doc.status==='draft'&&<button type="button" disabled={busy===doc.id} onClick={()=>changeStatus(doc,'issued')}>Выпустить</button>}
-          {doc.status==='issued'&&<button type="button" disabled={busy===doc.id} onClick={()=>changeStatus(doc,'signed')}>Отметить подписанным</button>}
+          {doc.status==='issued'&&<button type="button" disabled={busy===doc.id} onClick={()=>changeStatus(doc,'signed')}>
+            {isOffer?'Принять оферту':isKs2?'Принять КС-2':'Отметить подписанным'}
+          </button>}
           {(doc.status==='draft'||doc.status==='issued')&&<button className="danger-link" type="button" disabled={busy===doc.id} onClick={()=>changeStatus(doc,'cancelled')}>Отменить</button>}
-          {doc.status==='signed'&&<span className="document-signed">✓ Документ зафиксирован как подписанный</span>}
+          {doc.status==='signed'&&<span className="document-signed">{isOffer?'✓ Оферта акцептована · смета зафиксирована':isKs2?'✓ КС-2 принят':'✓ Документ зафиксирован как подписанный'}</span>}
         </div>
       </article>
     })}</div>}
@@ -922,7 +1102,7 @@ function WasteOrderDetails({order,onBack,onEdit,onStatusChange,onDuplicate,onDel
     <WorkProgressPanel order={order} onStatusChange={onStatusChange}/>
     <ApprovalAuditPanel order={order} onStatusChange={onStatusChange}/>
     <PaymentsPanel orderNumber={order.id}/>
-    <DocumentsPanel orderNumber={order.id}/>
+    <DocumentsPanel order={order} onStatusChange={onStatusChange}/>
   </section>
 }
 
@@ -996,7 +1176,7 @@ function OrderDetails({order,onBack,onEdit,onStatusChange,onDuplicate,onDelete})
     <WorkProgressPanel order={order} onStatusChange={onStatusChange}/>
     <ApprovalAuditPanel order={order} onStatusChange={onStatusChange}/>
     <PaymentsPanel orderNumber={order.id}/>
-    <DocumentsPanel orderNumber={order.id}/>
+    <DocumentsPanel order={order} onStatusChange={onStatusChange}/>
   </section>
 }
 
