@@ -3044,3 +3044,231 @@ textarea:focus {
     min-height:220px;
   }
 }
+
+
+.execution-map {
+  margin:18px 0 22px;
+  padding:20px;
+  border:1px solid #bdbdbd;
+  border-radius:12px;
+  background:#fff;
+}
+.execution-map__head {
+  display:flex;
+  justify-content:space-between;
+  gap:20px;
+  align-items:flex-start;
+  padding-bottom:16px;
+  border-bottom:1px solid #d7d7d7;
+}
+.execution-map__head h3 {
+  margin:2px 0 4px;
+  font-size:20px;
+}
+.execution-map__head > div > span {
+  color:#666;
+  font-size:11px;
+}
+.execution-map__head > strong {
+  font-size:28px;
+  line-height:1;
+}
+.execution-tree {
+  position:relative;
+  padding-top:18px;
+}
+.execution-root,
+.execution-acceptance {
+  display:flex;
+  gap:12px;
+  align-items:center;
+  position:relative;
+  z-index:2;
+}
+.execution-node-index {
+  width:32px;
+  height:32px;
+  flex:0 0 32px;
+  display:grid;
+  place-items:center;
+  border:1px solid #111;
+  border-radius:50%;
+  background:#111;
+  color:#fff;
+  font-size:11px;
+  font-weight:800;
+}
+.execution-root > div,
+.execution-acceptance > div {
+  display:grid;
+  gap:2px;
+}
+.execution-root small,
+.execution-acceptance small {
+  color:#666;
+  font-size:10px;
+}
+.execution-branches {
+  position:relative;
+  display:grid;
+  gap:12px;
+  margin:14px 0 14px 15px;
+  padding-left:34px;
+}
+.execution-branches::before {
+  content:'';
+  position:absolute;
+  left:0;
+  top:-14px;
+  bottom:-14px;
+  width:1px;
+  background:#999;
+}
+.execution-branch {
+  position:relative;
+  display:grid;
+  grid-template-columns:34px minmax(0,1fr);
+  gap:10px;
+}
+.execution-branch::before {
+  content:'';
+  position:absolute;
+  left:-34px;
+  top:17px;
+  width:34px;
+  height:1px;
+  background:#999;
+}
+.execution-branch__rail {
+  display:flex;
+  align-items:flex-start;
+  justify-content:center;
+}
+.execution-branch__rail span {
+  width:26px;
+  height:26px;
+  display:grid;
+  place-items:center;
+  border:1px solid #aaa;
+  border-radius:50%;
+  background:#fff;
+  font-size:10px;
+  font-weight:800;
+}
+.execution-branch--in_progress .execution-branch__rail span,
+.execution-branch--done .execution-branch__rail span {
+  border-color:#111;
+}
+.execution-branch--done .execution-branch__rail span {
+  background:#111;
+  color:#fff;
+}
+.execution-branch__card {
+  border:1px solid #d7d7d7;
+  border-radius:10px;
+  background:#fff;
+  overflow:hidden;
+}
+.execution-branch--in_progress .execution-branch__card {
+  border-color:#111;
+}
+.execution-branch--blocked .execution-branch__card {
+  border-style:dashed;
+}
+.execution-branch__head {
+  display:flex;
+  justify-content:space-between;
+  gap:14px;
+  align-items:flex-start;
+  padding:12px 14px 8px;
+}
+.execution-branch__head > div {
+  display:grid;
+  gap:3px;
+}
+.execution-branch__head small {
+  color:#666;
+  font-size:10px;
+}
+.execution-branch__head b {
+  font-size:12px;
+}
+.execution-branch__progress {
+  height:3px;
+  margin:0 14px;
+  background:#eee;
+}
+.execution-branch__progress span {
+  display:block;
+  height:100%;
+  background:#111;
+}
+.execution-subtasks {
+  display:grid;
+  gap:0;
+  padding:8px 14px 12px;
+}
+.execution-subtask {
+  display:grid;
+  grid-template-columns:10px 1fr;
+  gap:8px;
+  align-items:start;
+  padding:5px 0;
+  color:#333;
+  font-size:11px;
+  line-height:1.35;
+}
+.execution-subtask__dot {
+  width:5px;
+  height:5px;
+  margin-top:5px;
+  border:1px solid #111;
+  border-radius:50%;
+  background:#fff;
+}
+.execution-branch--done .execution-subtask__dot {
+  background:#111;
+}
+.execution-acceptance {
+  padding-top:2px;
+}
+.execution-acceptance--accepted .execution-node-index {
+  background:#111;
+}
+.execution-acceptance--pending .execution-node-index,
+.execution-acceptance--changes_requested .execution-node-index {
+  background:#fff;
+  color:#111;
+}
+
+@media (max-width:760px) {
+  .execution-map {
+    padding:14px;
+  }
+  .execution-map__head {
+    display:grid;
+  }
+  .execution-map__head > strong {
+    font-size:24px;
+  }
+  .execution-branches {
+    margin-left:12px;
+    padding-left:24px;
+  }
+  .execution-branch {
+    grid-template-columns:28px minmax(0,1fr);
+  }
+  .execution-branch::before {
+    left:-24px;
+    width:24px;
+  }
+  .execution-branch__head {
+    padding:10px 11px 7px;
+  }
+  .execution-branch__progress {
+    margin:0 11px;
+  }
+  .execution-subtasks {
+    padding:7px 11px 10px;
+  }
+}
