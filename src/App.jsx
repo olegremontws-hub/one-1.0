@@ -853,13 +853,21 @@ function WorkProgressPanel({order,onStatusChange}){
 
 function OrderDetails({order,onBack,onEdit,onStatusChange,onDuplicate,onDelete}) {
   if(!order) return null
+  const isRough=order.serviceType==='rough'
   const logistics=order.logistics||{}
-  const estimateRows=buildEstimateRows(order.rooms||[],order.demolition||{},order.rates||{})
+  const estimateRows=isRough
+    ? buildRoughEstimateRows(order.rooms||[],order.roughRepair||{},order.rates||{})
+    : buildEstimateRows(order.rooms||[],order.demolition||{},order.rates||{})
+  const serviceLabel=isRough?'Черновой ремонт':'Демонтаж'
 
   return <section className="workspace order-details">
     <button className="back-link" type="button" onClick={onBack}>← Мои заказы</button>
     <div className="workspace__head">
-      <div><p className="eyebrow">Заказ №{order.id}</p><h1>{order.objectLabel}</h1><p className="workspace__subtitle">{order.address}{order.priceBook&&<> · Прайс {order.priceBook.code} v{order.priceBook.version}</>}</p></div>
+      <div>
+        <p className="eyebrow">{serviceLabel} · заказ №{order.id}</p>
+        <h1>{order.objectLabel}</h1>
+        <p className="workspace__subtitle">{order.address}{order.priceBook&&<> · Прайс {order.priceBook.code} v{order.priceBook.version}</>}</p>
+      </div>
       <div className="detail-head-actions"><button className="button button--soft" type="button" onClick={()=>window.print()}>Печать сметы</button><button className="button button--compact" type="button" onClick={onEdit}>Редактировать</button></div>
     </div>
 
@@ -871,20 +879,24 @@ function OrderDetails({order,onBack,onEdit,onStatusChange,onDuplicate,onDelete})
     <div className="order-detail-kpis">
       <div><span>Итого</span><strong>{money(order.total)} ₽</strong></div>
       <div><span>Работы</span><strong>{money(order.workTotal)} ₽</strong></div>
-      <div><span>Мусор и логистика</span><strong>{money(logistics.total)} ₽</strong></div>
+      {isRough
+        ? <div><span>Услуга</span><strong>Черновой ремонт</strong></div>
+        : <div><span>Мусор и логистика</span><strong>{money(logistics.total)} ₽</strong></div>}
       <div><span>Помещений</span><strong>{order.rooms?.length||0}</strong></div>
     </div>
 
     <div className="detail-grid">
       <section className="detail-card"><p className="eyebrow">Объект</p><h2>{order.objectLabel}</h2><dl><div><dt>Адрес</dt><dd>{order.address}</dd></div><div><dt>Площадь</dt><dd>{order.area||'—'} м²</dd></div><div><dt>Этаж</dt><dd>{order.floor||'—'}</dd></div><div><dt>Лифт</dt><dd>{order.lift==='yes'?'Есть':'Нет'}</dd></div></dl></section>
-      <section className="detail-card"><p className="eyebrow">Логистика</p><h2>{logistics.transportLabel||'Расчёт не выполнен'}</h2><dl><div><dt>Объём отходов</dt><dd>{Number(logistics.volume||0).toFixed(2)} м³</dd></div><div><dt>Масса</dt><dd>{Math.round(logistics.weight||0)} кг</dd></div><div><dt>Мешки</dt><dd>{logistics.bags||0} шт</dd></div><div><dt>Крупногабарит</dt><dd>{logistics.bulky||0} ед.</dd></div></dl></section>
+      {isRough
+        ? <section className="detail-card"><p className="eyebrow">Черновой ремонт</p><h2>Состав расчёта</h2><dl><div><dt>Выбрано работ</dt><dd>{estimateRows.length}</dd></div><div><dt>Пол</dt><dd>Основания и гидроизоляция</dd></div><div><dt>Стены / потолок</dt><dd>Подготовка и выравнивание</dd></div><div><dt>Инженерия</dt><dd>Электрика и сантехника</dd></div></dl></section>
+        : <section className="detail-card"><p className="eyebrow">Логистика</p><h2>{logistics.transportLabel||'Расчёт не выполнен'}</h2><dl><div><dt>Объём отходов</dt><dd>{Number(logistics.volume||0).toFixed(2)} м³</dd></div><div><dt>Масса</dt><dd>{Math.round(logistics.weight||0)} кг</dd></div><div><dt>Мешки</dt><dd>{logistics.bags||0} шт</dd></div><div><dt>Крупногабарит</dt><dd>{logistics.bulky||0} ед.</dd></div></dl></section>}
     </div>
 
     <section className="detail-card detail-card--wide"><p className="eyebrow">Помещения</p><div className="saved-rooms">{(order.rooms||[]).map(room=><div key={room.id}><strong>{room.type}</strong><span>{Number(room.calc?.floor||0).toFixed(2)} м² пола</span><span>{Number(room.calc?.netWalls||0).toFixed(2)} м² стен</span></div>)}</div></section>
 
     <section className="detail-card detail-card--wide print-estimate">
       <p className="eyebrow">Предварительная смета</p>
-      <h2>Демонтажные работы</h2>
+      <h2>{isRough?'Черновые работы':'Демонтажные работы'}</h2>
       <div className="detail-estimate">
         <div className="detail-estimate__row detail-estimate__row--head"><span>Работа</span><span>Помещение</span><span>Кол-во</span><span>Цена</span><span>Сумма</span></div>
         {estimateRows.length===0?<p className="muted">Работы не выбраны.</p>:estimateRows.map(row=><div className="detail-estimate__row" key={row.roomId+row.code}>
@@ -898,8 +910,10 @@ function OrderDetails({order,onBack,onEdit,onStatusChange,onDuplicate,onDelete})
     </section>
 
     <div className="estimate-summary detail-total">
-      <div><span>Демонтажные работы</span><strong>{money(order.workTotal)} ₽</strong></div>
-      <div><span>Мусор и логистика</span><strong>{money(logistics.total)} ₽</strong></div>
+      <div><span>{isRough?'Черновые работы':'Демонтажные работы'}</span><strong>{money(order.workTotal)} ₽</strong></div>
+      {isRough
+        ? <div><span>Материалы</span><strong>По отдельному расчёту</strong></div>
+        : <div><span>Мусор и логистика</span><strong>{money(logistics.total)} ₽</strong></div>}
       <div className="estimate-summary__total"><span>Итого</span><strong>{money(order.total)} ₽</strong></div>
     </div>
 
