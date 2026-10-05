@@ -71,18 +71,28 @@ function profileSnapshot(row) {
 
 function orderSnapshot(row) {
   const payload=parseJSON(row.payload_json,{})
-  const estimate=(payload.serviceType==='rough'
-    ? buildRoughEstimateRows(payload.rooms||[],payload.roughRepair||{},payload.rates||{})
-    : buildEstimateRows(payload.rooms||[],payload.demolition||{},payload.rates||{}))
-    .map(item=>({
-      code:item.code,
-      name:item.name,
-      room:item.roomName,
-      unit:item.unit,
-      quantity:Number(item.quantity),
-      rate:Number(item.rate),
-      sum:Number(item.sum),
-    }))
+  const waste=payload.wasteRemoval||{}
+  const wasteCalc=waste.calculation||{}
+  const estimate=(payload.serviceType==='waste'
+    ? [
+        ['WST-CARRY','Вынос с объекта',Number(wasteCalc.carry||0)],
+        ['WST-LOAD','Погрузка',Number(wasteCalc.loading||0)],
+        ['WST-TRN','Транспорт',Number(wasteCalc.transport||0)],
+        ['WST-DSP','Утилизация',Number(wasteCalc.disposal||0)],
+        ['WST-DIST','Дальний пронос',Number(wasteCalc.distanceFee||0)],
+      ].filter(([, ,sum])=>sum>0).map(([code,name,sum])=>({code,name,room:'Объект',unit:'услуга',quantity:1,rate:sum,sum}))
+    : (payload.serviceType==='rough'
+      ? buildRoughEstimateRows(payload.rooms||[],payload.roughRepair||{},payload.rates||{})
+      : buildEstimateRows(payload.rooms||[],payload.demolition||{},payload.rates||{}))
+      .map(item=>({
+        code:item.code,
+        name:item.name,
+        room:item.roomName,
+        unit:item.unit,
+        quantity:Number(item.quantity),
+        rate:Number(item.rate),
+        sum:Number(item.sum),
+      })))
 
   return {
     publicNumber:String(row.public_number),
@@ -100,6 +110,7 @@ function orderSnapshot(row) {
       floor:Number(room.calc?.floor||0),
       netWalls:Number(room.calc?.netWalls||0),
     })),
+    wasteRemoval:payload.wasteRemoval||null,
     estimate,
     totals:{
       work:Number(row.work_total||0),
@@ -125,8 +136,12 @@ function documentBody(kind,client,order) {
       ...common,
       purpose:order.serviceType==='rough'
         ? 'Предварительное коммерческое предложение по выбранному объёму черновых ремонтных работ.'
-        : 'Предварительное коммерческое предложение по выбранному объёму демонтажных работ и логистике.',
-      sections:['Клиент и объект','Состав работ','Стоимость работ','Отходы и логистика','Итоговая стоимость'],
+        : order.serviceType==='waste'
+          ? 'Предварительное коммерческое предложение на вывоз строительного мусора с согласованными условиями объекта, транспортом и утилизацией.'
+          : 'Предварительное коммерческое предложение по выбранному объёму демонтажных работ и логистике.',
+      sections:order.serviceType==='waste'
+        ? ['Клиент и объект','Параметры вывоза','Вынос и погрузка','Транспорт и утилизация','Итоговая стоимость']
+        : ['Клиент и объект','Состав работ','Стоимость работ','Отходы и логистика','Итоговая стоимость'],
     }
   }
 
