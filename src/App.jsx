@@ -60,7 +60,7 @@ function AuthStep({method,setMethod,contact,setContact,onNext,busy,error}) {
   const valid=isPhone?contact.replace(/\D/g,'').length>=11:/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact)
   return <>
     <StepMeta current={1}/>
-    <div className="page-heading"><p className="eyebrow">Клиент Bath Dream</p><h1>Создайте аккаунт</h1><p>Сохраняйте расчёты, создавайте заказы и возвращайтесь к ним с этого устройства.</p></div>
+    <div className="page-heading"><p className="eyebrow">Клиент AW HOME</p><h1>Создайте аккаунт</h1><p>Сохраняйте расчёты, создавайте заказы и возвращайтесь к ним с этого устройства.</p></div>
     <Tabs value={method} onChange={next=>{setMethod(next);setContact('')}}/>
     <label className="field"><span>{isPhone?'Номер телефона':'Электронная почта'}</span><input autoFocus inputMode={isPhone?'tel':'email'} placeholder={isPhone?'+7 999 123-45-67':'name@example.ru'} value={contact} onChange={e=>setContact(e.target.value)}/></label>
     {error&&<div className="notice notice--error">{error}</div>}
@@ -123,7 +123,7 @@ function ProfileStep({type,contact,method,onBack,onNext,busy,error}) {
 function ServicesPage({onDemolition,onWaste,onRough}) {
   return <section className="services-page">
     <div className="services-hero">
-      <p className="eyebrow">Услуги Bath Dream</p>
+      <p className="eyebrow">Услуги AW HOME</p>
       <h1>Что нужно сделать?</h1>
       <p>Выберите услугу. У каждой услуги свой расчёт и отдельный сценарий заказа.</p>
     </div>
@@ -314,7 +314,7 @@ async function makeLocalDocument(kind,order,existing=[]){
   }
   const common={
     generatedAt:now,
-    client:{displayName:'Клиент Bath Dream'},
+    client:{displayName:'Клиент AW HOME'},
     order:baseOrder,
     smartContract:{
       estimateHash:hash,algorithm:'SHA-256',immutableSnapshot:true,
@@ -346,7 +346,7 @@ async function makeLocalDocument(kind,order,existing=[]){
       purpose:'Акт о приёмке выполненных работ, сформированный по структуре формы КС-2.',
       ks2:{
         form:'КС-2',okud:'0322005',documentNumber:number,date:now.slice(0,10),
-        customer:'Клиент Bath Dream',contractor:'Bath Dream',
+        customer:'Клиент AW HOME',contractor:'Bath Dream',
         object:`${baseOrder.objectLabel} · ${baseOrder.address||'—'}`,
         contractReference:signedOffer?.number||null,
         estimatedContractValue:baseOrder.totals.total,
