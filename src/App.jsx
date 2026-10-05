@@ -24,7 +24,7 @@ function Header({authenticated,onServices,onOrders,onCreateOrder,onLogout}) {
   return <header className="topbar">
     <div className="topbar__inner">
       <button className="brand brand-button" type="button" onClick={authenticated?onServices:undefined} aria-label="Bath Dream">
-        <span className="brand__bath">BATH</span><span className="brand__dream">dream</span>
+        <img className="brand__logo" src={`${import.meta.env.BASE_URL}bath-dream-logo.svg`} alt="Bath Dream"/>
       </button>
       <div className="topbar__meta">
         {authenticated&&<button className="nav-link" type="button" onClick={onServices}>Услуги</button>}
@@ -1506,6 +1506,12 @@ export default function App() {
       {screen==='create-waste-order'&&<CreateWasteOrder initialOrder={editingOrder} onCancel={()=>setScreen('services')} onSave={saveOrder}/>}
       {screen==='order-detail'&&<OrderDetails order={selectedOrder} onBack={()=>setScreen('orders')} onEdit={()=>selectedOrder&&editOrder(selectedOrder.id)} onStatusChange={status=>selectedOrder&&changeStatus(selectedOrder.id,status)} onDuplicate={()=>selectedOrder&&duplicateOrder(selectedOrder.id)} onDelete={()=>selectedOrder&&deleteOrder(selectedOrder.id)}/>}
     </main>
-    <footer className="footer"><span>© Bath Dream</span><span>{authenticated?'Клиентский кабинет · рабочая MVP':'Клиентский модуль · MVP'}</span></footer>
+    <footer className="footer">
+      <div className="footer__brand">
+        <img src={`${import.meta.env.BASE_URL}bath-dream-logo.svg`} alt="Bath Dream"/>
+        <span>Ремонт и сервис с прозрачной сметой</span>
+      </div>
+      <span>{authenticated?'Клиентский кабинет · рабочая MVP':'Клиентский модуль · MVP'}</span>
+    </footer>
   </div>
 }
