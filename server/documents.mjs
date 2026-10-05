@@ -1,10 +1,13 @@
+import { createHash } from 'node:crypto'
 import { buildEstimateRows, buildRoughEstimateRows } from '../src/domain/model.js'
 import { db, nowIso, parseJSON, uid } from './db.mjs'
 
 export const DOCUMENT_KINDS={
   quote:{prefix:'КП',title:'Коммерческое предложение'},
+  offer:{prefix:'ОФ',title:'Договор-оферта со смарт-сметой'},
   contract:{prefix:'ДОГ',title:'Договор на выполнение работ'},
   act:{prefix:'АКТ',title:'Акт выполненных работ'},
+  ks2:{prefix:'КС2',title:'Акт о приёмке выполненных работ (по форме КС-2)'},
 }
 
 function ownedOrder(accountId,publicNumber) {
@@ -123,12 +126,32 @@ function orderSnapshot(row) {
   }
 }
 
-function documentBody(kind,client,order) {
+function estimateHash(order) {
+  const canonical=JSON.stringify({
+    publicNumber:order.publicNumber,
+    serviceType:order.serviceType,
+    address:order.address,
+    estimate:order.estimate,
+    totals:order.totals,
+    priceBook:order.priceBook,
+  })
+  return createHash('sha256').update(canonical).digest('hex')
+}
+
+function documentBody(kind,client,order,context={}) {
+  const hash=estimateHash(order)
   const common={
     generatedAt:nowIso(),
     client,
     order,
-    disclaimer:'Черновик документа Bath Dream. Юридическая форма и реквизиты подлежат утверждению перед коммерческим использованием.',
+    smartContract:{
+      estimateHash:hash,
+      algorithm:'SHA-256',
+      immutableSnapshot:true,
+      orderVersionAtGeneration:order.orderUpdatedAt,
+      acceptanceRule:'Принятие оферты фиксирует эту версию сметы. Изменения оформляются новой версией документа.',
+    },
+    disclaimer:'Черновик документа Bath Dream. Перед коммерческим использованием договор-оферта, реквизиты, порядок акцепта и печатная форма должны быть проверены юристом и бухгалтером.',
   }
 
   if(kind==='quote'){
@@ -145,11 +168,66 @@ function documentBody(kind,client,order) {
     }
   }
 
+  if(kind==='offer'){
+    return {
+      ...common,
+      purpose:'Договор-оферта на выполнение услуг по зафиксированной смете Bath Dream.',
+      offer:{
+        subject:`Выполнение услуги «${order.serviceLabel}» на объекте ${order.address||'по адресу из заказа'} в составе зафиксированной сметы.`,
+        price:Number(order.totals?.total||0),
+        currency:'RUB',
+        estimateHash:hash,
+        acceptance:'Акцептом считается подтверждение клиентом выпущенной оферты в интерфейсе Bath Dream. Фиксируются версия документа, смета, сумма, дата и время акцепта.',
+        changeRule:'Любое изменение состава, количества, ставки или итоговой суммы требует формирования новой версии сметы и новой версии оферты.',
+        acceptanceResult:'После акцепта заказ переводится в договорной статус и используется как основание для выполнения работ и последующей приёмки.',
+      },
+      sections:['Стороны и реквизиты','Предмет оферты','Зафиксированная смета','Цена и расчёты','Порядок выполнения','Акцепт и изменение версии','Приёмка результата'],
+    }
+  }
+
   if(kind==='contract'){
     return {
       ...common,
       purpose:'Черновик договора на выполнение согласованного объёма работ по заказу Bath Dream.',
       sections:['Стороны','Предмет договора','Стоимость','Порядок выполнения','Приёмка','Документы и расчёты'],
+    }
+  }
+
+  if(kind==='ks2'){
+    const rows=(order.estimate||[]).map((item,index)=>({
+      number:index+1,
+      estimatePosition:index+1,
+      name:item.name,
+      rateCode:item.code||'—',
+      unit:item.unit,
+      quantity:Number(item.quantity||0),
+      unitPrice:Number(item.rate||0),
+      amount:Number(item.sum||0),
+    }))
+    return {
+      ...common,
+      purpose:'Акт о приёмке выполненных работ, сформированный по структуре унифицированной формы КС-2.',
+      ks2:{
+        form:'КС-2',
+        okud:'0322005',
+        documentNumber:context.documentNumber||null,
+        date:nowIso().slice(0,10),
+        investor:null,
+        customer:client.displayName||'Клиент Bath Dream',
+        contractor:'Bath Dream',
+        object:`${order.objectLabel||order.serviceLabel||'Объект'} · ${order.address||'—'}`,
+        contractReference:context.offerNumber||context.contractNumber||null,
+        estimatedContractValue:Number(order.totals?.total||0),
+        reportingPeriod:{
+          from:(order.orderCreatedAt||nowIso()).slice(0,10),
+          to:nowIso().slice(0,10),
+        },
+        rows,
+        total:rows.reduce((sum,row)=>sum+row.amount,0),
+        handedOverBy:'Исполнитель',
+        acceptedBy:client.displayName||'Заказчик',
+      },
+      sections:['Заказчик и подрядчик','Объект','Договорная стоимость','Отчётный период','Таблица выполненных работ','Итого по акту','Сдал / Принял'],
     }
   }
 
@@ -182,7 +260,13 @@ export function createDocument(accountId,publicNumber,kind) {
   const number=`${meta.prefix}-${order.public_number}-${String(version).padStart(2,'0')}`
   const now=nowIso()
   const id=uid('doc')
-  const content=documentBody(kind,profileSnapshot(order),orderSnapshot(order))
+  const signedOffer=kind==='ks2'
+    ? db.prepare("SELECT number FROM documents WHERE order_id=? AND kind='offer' AND status='signed' ORDER BY signed_at DESC, created_at DESC LIMIT 1").get(order.order_id)
+    : null
+  const content=documentBody(kind,profileSnapshot(order),orderSnapshot(order),{
+    documentNumber:number,
+    offerNumber:signedOffer?.number||null,
+  })
 
   db.prepare(`
     INSERT INTO documents(id,order_id,kind,number,version,status,title,content_json,created_at,updated_at)
@@ -218,6 +302,10 @@ export function updateDocumentStatus(accountId,id,status) {
     SET status=?,updated_at=?,issued_at=?,signed_at=?
     WHERE id=?
   `).run(status,now,issuedAt,signedAt,id)
+
+  if(current.kind==='offer'&&status==='signed'){
+    db.prepare("UPDATE orders SET status='contract',updated_at=? WHERE id=?").run(now,current.order_id)
+  }
 
   return serialize(ownedDocument(accountId,id))
 }
