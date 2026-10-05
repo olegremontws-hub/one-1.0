@@ -116,7 +116,7 @@ ON orders(project_id, updated_at DESC);
 CREATE TABLE IF NOT EXISTS documents (
   id TEXT PRIMARY KEY,
   order_id TEXT NOT NULL,
-  kind TEXT NOT NULL CHECK (kind IN ('quote','contract','act')),
+  kind TEXT NOT NULL CHECK (kind IN ('quote','offer','contract','act','ks2')),
   number TEXT NOT NULL,
   version INTEGER NOT NULL,
   status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft','issued','signed','cancelled')),
@@ -234,5 +234,5 @@ CREATE INDEX IF NOT EXISTS idx_acceptance_order
 ON acceptance_records(order_id, created_at DESC);
 
 INSERT INTO schema_meta(key,value)
-VALUES ('schema_version','6')
+VALUES ('schema_version','7')
 ON CONFLICT(key) DO UPDATE SET value=excluded.value;
