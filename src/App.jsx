@@ -3,6 +3,7 @@ import CreateOrder from './components/CreateOrder.jsx'
 import CreateRoughOrder from './components/CreateRoughOrder.jsx'
 import CreateWasteOrder from './components/CreateWasteOrder.jsx'
 import ExecutionHierarchyMap from './components/ExecutionHierarchyMap.jsx'
+import ClientHome from './components/ClientHome.jsx'
 import {
   CLIENT_TYPES, ORDER_STATUSES, PROFILE_FIELDS, WASTE_REMOVAL_TYPES, buildEstimateRows, buildRoughEstimateRows, cloneOrder, money,
   statusLabel, validateOrder, validateProfileField,
@@ -20,19 +21,20 @@ import { readJSON, removeKey, writeJSON } from './lib/storage.js'
 const ACCOUNT_KEY='bathdream.account'
 const ORDERS_KEY='bathdream.orders'
 
-function Header({authenticated,onServices,onOrders,onCreateOrder,onLogout}) {
+function Header({authenticated,onHome,onStore,onOrders,onCreateOrder,onLogout}) {
   return <header className="topbar">
     <div className="topbar__inner">
-      <button className="brand brand-button" type="button" onClick={authenticated?onServices:undefined} aria-label="Bath Dream">
-        <img className="brand__logo" src={`${import.meta.env.BASE_URL}bath-dream-logo.svg`} alt="Bath Dream"/>
+      <button className="brand brand-button" type="button" onClick={authenticated?onHome:undefined} aria-label="AW HOME">
+        <img className="brand__logo" src={`${import.meta.env.BASE_URL}aw-home-logo.svg`} alt="AW HOME"/>
       </button>
       <div className="topbar__meta">
-        {authenticated&&<button className="nav-link" type="button" onClick={onServices}>Услуги</button>}
+        <a className="phone" href="tel:88003338837">8 (800) 333 88 37</a>
+        <button className="city" type="button">Москва⌄</button>
+        {authenticated&&<button className="nav-link" type="button" onClick={onStore}>Магазин</button>}
         {authenticated&&<button className="nav-link" type="button" onClick={onOrders}>Мои заказы</button>}
-        {authenticated&&<button className="nav-link" type="button" onClick={onCreateOrder}>Создать заказ</button>}
-        <button className="city" type="button"><span className="city__dot"/>Москва</button>
-        <a className="phone" href="tel:88003338837">8 (800) 333-88-37</a>
-        {authenticated?<button className="text-button" type="button" onClick={onLogout}>Выйти</button>:<span className="text-button">Войти</span>}
+        {authenticated&&<button className="project-create-nav" type="button" onClick={onCreateOrder}>＋ Создать проект</button>}
+        {authenticated&&<div className="header-balance"><span>Баланс</span><strong>— ₽</strong></div>}
+        {authenticated?<button className="header-profile" type="button" onClick={onLogout} title="Выйти">◎</button>:<span className="text-button">Войти</span>}
       </div>
     </div>
   </header>
