@@ -3,7 +3,7 @@ import CreateOrder from './components/CreateOrder.jsx'
 import CreateRoughOrder from './components/CreateRoughOrder.jsx'
 import CreateWasteOrder from './components/CreateWasteOrder.jsx'
 import {
-  CLIENT_TYPES, ORDER_STATUSES, PROFILE_FIELDS, buildEstimateRows, buildRoughEstimateRows, cloneOrder, money,
+  CLIENT_TYPES, ORDER_STATUSES, PROFILE_FIELDS, WASTE_REMOVAL_TYPES, buildEstimateRows, buildRoughEstimateRows, cloneOrder, money,
   statusLabel, validateOrder, validateProfileField,
 } from './domain/model.js'
 import { makeBackup, downloadBackup, readBackupFile } from './lib/backup.js'
@@ -226,8 +226,14 @@ function OrdersDashboard({orders,onCreateOrder,onOpenOrder,onEditOrder,onDuplica
 
     {orders.length===0?<div className="empty-state"><div className="empty-state__icon">＋</div><h2>Заказов пока нет</h2><p>Выберите услугу и создайте первый расчёт по объекту и помещениям.</p><button className="button button--primary empty-state__button" type="button" onClick={onCreateOrder}>Создать заказ</button></div>:
     <div className="order-list">{orders.map(order=><article className="order-card" key={order.id}>
-      <div className="order-card__top"><div><StatusBadge status={order.status}/><small className="order-service-label">{order.serviceType==='rough'?'Черновой ремонт':'Демонтаж'}</small><h2>Заказ №{order.id}</h2></div><strong>{money(order.total)} ₽</strong></div>
-      <dl><div><dt>Объект</dt><dd>{order.objectLabel||'—'}</dd></div><div><dt>Адрес</dt><dd>{order.address||'—'}</dd></div><div><dt>Помещения</dt><dd>{order.rooms?.length||0}</dd></div></dl>
+      <div className="order-card__top"><div><StatusBadge status={order.status}/><small className="order-service-label">{order.serviceType==='rough'?'Черновой ремонт':order.serviceType==='waste'?'Вывоз мусора':'Демонтаж'}</small><h2>Заказ №{order.id}</h2></div><strong>{money(order.total)} ₽</strong></div>
+      <dl>
+        <div><dt>Объект</dt><dd>{order.objectLabel||'—'}</dd></div>
+        <div><dt>Адрес</dt><dd>{order.address||'—'}</dd></div>
+        {order.serviceType==='waste'
+          ? <div><dt>Объём</dt><dd>{Number(order.wasteRemoval?.calculation?.volume||0).toFixed(2)} м³</dd></div>
+          : <div><dt>Помещения</dt><dd>{order.rooms?.length||0}</dd></div>}
+      </dl>
       <div className="order-card__actions">
         <button className="secondary-button secondary-button--inline" type="button" onClick={()=>onOpenOrder(order.id)}>Открыть</button>
         <button className="secondary-button secondary-button--inline" type="button" onClick={()=>onEditOrder(order.id)}>Редактировать</button>
@@ -852,8 +858,70 @@ function WorkProgressPanel({order,onStatusChange}){
   </section>
 }
 
+function WasteOrderDetails({order,onBack,onEdit,onStatusChange,onDuplicate,onDelete}) {
+  const waste=order.wasteRemoval||{}
+  const calc=waste.calculation||{}
+  const logistics=order.logistics||{}
+  const typeLabels=(waste.types||[]).map(id=>WASTE_REMOVAL_TYPES.find(item=>item.id===id)?.title).filter(Boolean)
+
+  return <section className="workspace order-details">
+    <button className="back-link" type="button" onClick={onBack}>← Мои заказы</button>
+    <div className="workspace__head">
+      <div>
+        <p className="eyebrow">Вывоз строительного мусора · заказ №{order.id}</p>
+        <h1>{order.address}</h1>
+        <p className="workspace__subtitle">{waste.date||'Дата не указана'} · {waste.timeSlot||'Интервал не указан'}</p>
+      </div>
+      <div className="detail-head-actions"><button className="button button--soft" type="button" onClick={()=>window.print()}>Печать расчёта</button><button className="button button--compact" type="button" onClick={onEdit}>Редактировать</button></div>
+    </div>
+
+    <div className="order-control-bar">
+      <div><span>Статус заказа</span><select value={order.status||'draft'} onChange={e=>onStatusChange(e.target.value)}>{ORDER_STATUSES.map(item=><option key={item.id} value={item.id}>{item.label}</option>)}</select></div>
+      <div className="order-control-bar__actions"><button type="button" onClick={onDuplicate}>Дублировать</button><button className="danger-link" type="button" onClick={onDelete}>Удалить</button></div>
+    </div>
+
+    <div className="order-detail-kpis">
+      <div><span>Итого</span><strong>{money(order.total)} ₽</strong></div>
+      <div><span>Объём</span><strong>{Number(calc.volume||0).toFixed(2)} м³</strong></div>
+      <div><span>Мешки</span><strong>{calc.bags||0}</strong></div>
+      <div><span>Транспорт</span><strong>{calc.transportLabel||logistics.transportLabel||'—'}</strong></div>
+    </div>
+
+    <div className="detail-grid">
+      <section className="detail-card"><p className="eyebrow">Условия объекта</p><h2>{order.address}</h2><dl>
+        <div><dt>Этаж</dt><dd>{order.floor||'—'}</dd></div>
+        <div><dt>Лифт</dt><dd>{order.lift==='yes'?'Есть':'Нет'}</dd></div>
+        <div><dt>До машины</dt><dd>{waste.distance||0} м</dd></div>
+        <div><dt>Вынос</dt><dd>{waste.carryMode==='team'?'Бригада Bath Dream':'Мусор уже вынесен'}</dd></div>
+      </dl></section>
+      <section className="detail-card"><p className="eyebrow">Что вывозим</p><h2>{typeLabels.join(', ')||'Строительный мусор'}</h2><dl>
+        <div><dt>Дата</dt><dd>{waste.date?new Date(waste.date+'T00:00:00').toLocaleDateString('ru-RU'):'—'}</dd></div>
+        <div><dt>Интервал</dt><dd>{waste.timeSlot||'—'}</dd></div>
+        <div><dt>Оценка</dt><dd>{waste.amountMode==='bags'?'По мешкам':waste.amountMode==='m3'?'По м³':'Визуально'}</dd></div>
+        <div><dt>Фото</dt><dd>{waste.photoName||'Не добавлено'}</dd></div>
+      </dl></section>
+    </div>
+
+    <section className="detail-card detail-card--wide waste-price-breakdown print-estimate">
+      <p className="eyebrow">Расчёт стоимости</p>
+      <div><span>Вынос с объекта</span><strong>{money(calc.carry)} ₽</strong></div>
+      <div><span>Погрузка</span><strong>{money(calc.loading)} ₽</strong></div>
+      <div><span>Транспорт · {calc.transportLabel||'—'}</span><strong>{money(calc.transport)} ₽</strong></div>
+      <div><span>Утилизация</span><strong>{money(calc.disposal)} ₽</strong></div>
+      {Number(calc.distanceFee||0)>0&&<div><span>Дальний пронос · {calc.distanceLabel}</span><strong>{money(calc.distanceFee)} ₽</strong></div>}
+      <div className="waste-price-breakdown__total"><span>Итого</span><strong>{money(order.total)} ₽</strong></div>
+    </section>
+
+    <WorkProgressPanel order={order} onStatusChange={onStatusChange}/>
+    <ApprovalAuditPanel order={order} onStatusChange={onStatusChange}/>
+    <PaymentsPanel orderNumber={order.id}/>
+    <DocumentsPanel orderNumber={order.id}/>
+  </section>
+}
+
 function OrderDetails({order,onBack,onEdit,onStatusChange,onDuplicate,onDelete}) {
   if(!order) return null
+  if(order.serviceType==='waste') return <WasteOrderDetails order={order} onBack={onBack} onEdit={onEdit} onStatusChange={onStatusChange} onDuplicate={onDuplicate} onDelete={onDelete}/>
   const isRough=order.serviceType==='rough'
   const logistics=order.logistics||{}
   const estimateRows=isRough
