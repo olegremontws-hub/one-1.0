@@ -2264,7 +2264,7 @@ h2 { margin: 0; color: var(--ink); letter-spacing: -.025em; }
 }
 .services-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0,1fr));
+  grid-template-columns: repeat(3, minmax(0,1fr));
   gap: 18px;
 }
 .service-card {
@@ -2329,6 +2329,22 @@ h2 { margin: 0; color: var(--ink); letter-spacing: -.025em; }
 .service-card--waste .service-card__symbol {
   background: #163f3a;
   box-shadow: 0 14px 32px rgba(22,63,58,.14);
+}
+.service-card--rough {
+  background: linear-gradient(180deg,#ffffff 0%,#f4f8ff 100%);
+}
+.service-card--rough .service-card__symbol {
+  background: #52657a;
+  box-shadow: 0 14px 32px rgba(82,101,122,.14);
+}
+.order-service-label {
+  display:inline-block;
+  margin:8px 0 0;
+  color:var(--muted);
+  font-size:10px;
+  font-weight:800;
+  text-transform:uppercase;
+  letter-spacing:.06em;
 }
 .service-card__content {
   margin-top: auto;
