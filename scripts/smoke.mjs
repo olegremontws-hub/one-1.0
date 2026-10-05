@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import {
   roomCalc, buildEstimateRows, buildRoughEstimateRows, calculateWasteAndLogistics, cloneOrder, validateOrder,
-  DEMO_RATES, ROUGH_RATES, suggestedRoughQuantity,
+  DEMO_RATES, ROUGH_RATES, WASTE_REMOVAL_RATES, calculateWasteRemoval, suggestedRoughQuantity,
 } from '../src/domain/model.js'
 
 const room={
@@ -92,3 +92,51 @@ const roughOrder={
 }
 assert.deepEqual(validateOrder(roughOrder),[])
 console.log('Bath Dream rough repair smoke test passed')
+
+
+const wasteCalc=calculateWasteRemoval({
+  types:['heavy','mixed'],
+  amountMode:'bags',
+  bags:40,
+  floor:5,
+  lift:'no',
+  distance:35,
+  carryMode:'team',
+},WASTE_REMOVAL_RATES)
+
+assert.equal(Number(wasteCalc.volume.toFixed(2)),1)
+assert.equal(wasteCalc.bags,40)
+assert(wasteCalc.carry>0)
+assert(wasteCalc.loading>0)
+assert(wasteCalc.transport>0)
+assert(wasteCalc.disposal>0)
+assert(wasteCalc.distanceFee>0)
+assert(wasteCalc.total>wasteCalc.transport)
+
+const wasteOrder={
+  id:'1926',
+  serviceType:'waste',
+  serviceLabel:'Вывоз строительного мусора',
+  objectType:'waste',
+  objectLabel:'Вывоз строительного мусора',
+  address:'Москва, тестовый адрес',
+  floor:'5',
+  lift:'no',
+  rooms:[],
+  wasteRemoval:{
+    types:['heavy','mixed'],
+    amountMode:'bags',
+    bags:40,
+    distance:35,
+    carryMode:'team',
+    date:'2026-10-06',
+    timeSlot:'08:00–12:00',
+    calculation:wasteCalc,
+  },
+  workTotal:wasteCalc.carry+wasteCalc.loading,
+  logistics:{total:wasteCalc.transport+wasteCalc.disposal+wasteCalc.distanceFee},
+  total:wasteCalc.total,
+  status:'calculated',
+}
+assert.deepEqual(validateOrder(wasteOrder),[])
+console.log('Bath Dream waste removal smoke test passed')
