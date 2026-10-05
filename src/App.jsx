@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import CreateOrder from './components/CreateOrder.jsx'
+import CreateRoughOrder from './components/CreateRoughOrder.jsx'
 import {
-  CLIENT_TYPES, ORDER_STATUSES, PROFILE_FIELDS, buildEstimateRows, cloneOrder, money,
+  CLIENT_TYPES, ORDER_STATUSES, PROFILE_FIELDS, buildEstimateRows, buildRoughEstimateRows, cloneOrder, money,
   statusLabel, validateOrder, validateProfileField,
 } from './domain/model.js'
 import { makeBackup, downloadBackup, readBackupFile } from './lib/backup.js'
@@ -115,7 +116,7 @@ function ProfileStep({type,contact,method,onBack,onNext,busy,error}) {
   </>
 }
 
-function ServicesPage({onDemolition,onWaste}) {
+function ServicesPage({onDemolition,onWaste,onRough}) {
   return <section className="services-page">
     <div className="services-hero">
       <p className="eyebrow">Услуги Bath Dream</p>
@@ -141,6 +142,16 @@ function ServicesPage({onDemolition,onWaste}) {
           <h2>Вывоз строительного мусора</h2>
           <p>Отдельный заказ на вывоз: адрес, этаж, лифт, объём отходов, погрузка, транспорт и утилизация.</p>
           <span className="service-card__action">Перейти к услуге <b>→</b></span>
+        </div>
+      </button>
+
+      <button className="service-card service-card--rough" type="button" onClick={onRough}>
+        <div className="service-card__top"><span className="service-card__number">03</span><span className="service-card__badge">Расчёт по помещениям</span></div>
+        <div className="service-card__symbol">Ч</div>
+        <div className="service-card__content">
+          <h2>Черновой ремонт</h2>
+          <p>Черновые работы по полу, стенам, потолку, перегородкам, электрике и сантехнике с расчётом по помещениям.</p>
+          <span className="service-card__action">Рассчитать ремонт <b>→</b></span>
         </div>
       </button>
     </div>
@@ -1120,13 +1131,18 @@ export default function App() {
   }
 
   const openOrder=id=>{setSelectedOrderId(id);setScreen('order-detail')}
-  const editOrder=id=>{setEditingOrderId(id);setScreen('create-order')}
+  const editOrder=id=>{const order=orders.find(item=>item.id===id);setEditingOrderId(id);setScreen(order?.serviceType==='rough'?'create-rough-order':'create-order')}
   const createOrder=()=>{
     setEditingOrderId(null)
     setScreen('create-order')
     if(REMOTE_ENABLED){
       loadActivePricing().then(setPricing).catch(()=>{})
     }
+  }
+
+  const createRoughOrder=()=>{
+    setEditingOrderId(null)
+    setScreen('create-rough-order')
   }
 
   const duplicateOrder=id=>{
@@ -1190,10 +1206,11 @@ export default function App() {
     <Header authenticated={authenticated} onServices={()=>setScreen('services')} onOrders={()=>setScreen('orders')} onCreateOrder={createOrder} onLogout={logout}/>
     <main className={screen==='auth'?'main':'main main--workspace'}>
       {screen==='auth'&&<section className="auth-card">{renderAuth()}</section>}
-      {screen==='services'&&<ServicesPage onDemolition={()=>setScreen('orders')} onWaste={()=>setScreen('waste-service')}/>}
+      {screen==='services'&&<ServicesPage onDemolition={()=>setScreen('orders')} onWaste={()=>setScreen('waste-service')} onRough={createRoughOrder}/>}
       {screen==='waste-service'&&<WasteRemovalService onBack={()=>setScreen('services')}/>}
       {screen==='orders'&&<OrdersDashboard orders={orders} onCreateOrder={createOrder} onOpenOrder={openOrder} onEditOrder={editOrder} onDuplicate={duplicateOrder} onDelete={deleteOrder} onExport={exportData} onImport={importData} notice={notice} storageMode={remoteStatus}/>} 
       {screen==='create-order'&&<CreateOrder initialOrder={editingOrder} onCancel={()=>setScreen('orders')} onSave={saveOrder} pricing={pricing}/>}
+      {screen==='create-rough-order'&&<CreateRoughOrder initialOrder={editingOrder} onCancel={()=>setScreen('services')} onSave={saveOrder}/>}
       {screen==='order-detail'&&<OrderDetails order={selectedOrder} onBack={()=>setScreen('orders')} onEdit={()=>selectedOrder&&editOrder(selectedOrder.id)} onStatusChange={status=>selectedOrder&&changeStatus(selectedOrder.id,status)} onDuplicate={()=>selectedOrder&&duplicateOrder(selectedOrder.id)} onDelete={()=>selectedOrder&&deleteOrder(selectedOrder.id)}/>}
     </main>
     <footer className="footer"><span>© Bath Dream</span><span>{authenticated?'Клиентский кабинет · рабочая MVP':'Клиентский модуль · MVP'}</span></footer>
