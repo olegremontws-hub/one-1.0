@@ -223,9 +223,9 @@ function OrdersDashboard({orders,onCreateOrder,onOpenOrder,onEditOrder,onDuplica
 
     {notice&&<div className={`notice notice--${notice.type}`}>{notice.text}</div>}
 
-    {orders.length===0?<div className="empty-state"><div className="empty-state__icon">＋</div><h2>Заказов пока нет</h2><p>Создайте первый заказ: объект → помещения → геометрия → демонтаж → смета.</p><button className="button button--primary empty-state__button" type="button" onClick={onCreateOrder}>Создать заказ</button></div>:
+    {orders.length===0?<div className="empty-state"><div className="empty-state__icon">＋</div><h2>Заказов пока нет</h2><p>Выберите услугу и создайте первый расчёт по объекту и помещениям.</p><button className="button button--primary empty-state__button" type="button" onClick={onCreateOrder}>Создать заказ</button></div>:
     <div className="order-list">{orders.map(order=><article className="order-card" key={order.id}>
-      <div className="order-card__top"><div><StatusBadge status={order.status}/><h2>Заказ №{order.id}</h2></div><strong>{money(order.total)} ₽</strong></div>
+      <div className="order-card__top"><div><StatusBadge status={order.status}/><small className="order-service-label">{order.serviceType==='rough'?'Черновой ремонт':'Демонтаж'}</small><h2>Заказ №{order.id}</h2></div><strong>{money(order.total)} ₽</strong></div>
       <dl><div><dt>Объект</dt><dd>{order.objectLabel||'—'}</dd></div><div><dt>Адрес</dt><dd>{order.address||'—'}</dd></div><div><dt>Помещения</dt><dd>{order.rooms?.length||0}</dd></div></dl>
       <div className="order-card__actions">
         <button className="secondary-button secondary-button--inline" type="button" onClick={()=>onOpenOrder(order.id)}>Открыть</button>
