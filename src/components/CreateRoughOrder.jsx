@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import AddressPicker from './AddressPicker.jsx'
 import { RoomCard } from './CreateOrder.jsx'
 import {
   OBJECT_TYPES, ROUGH_CATALOG, ROUGH_RATES, ROOM_TYPES, buildRoughEstimateRows,
@@ -249,8 +250,8 @@ export default function CreateRoughOrder({initialOrder,onCancel,onSave}) {
       <span className="object-card__icon">{item.id==='new'?'▦':item.id==='secondary'?'⌂':'△'}</span>
       <strong>{item.title}</strong><small>{item.text}</small>
     </button>)}</div>
+    <AddressPicker value={address} onChange={setAddress}/>
     <div className="form-grid form-grid--order">
-      <label className="field field--wide"><span>Адрес объекта</span><input placeholder="Москва, улица, дом, квартира" value={address} onChange={e=>setAddress(e.target.value)}/></label>
       <label className="field"><span>Общая площадь по полу, м²</span><input inputMode="decimal" placeholder="72" value={area} onChange={e=>setArea(e.target.value.replace(/[^0-9.,]/g,''))}/></label>
       <label className="field"><span>Этаж</span><input inputMode="numeric" placeholder="8" value={floor} onChange={e=>setFloor(e.target.value.replace(/\D/g,''))}/></label>
     </div>
