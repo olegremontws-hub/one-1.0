@@ -4,6 +4,7 @@ import CreateRoughOrder from './components/CreateRoughOrder.jsx'
 import CreateWasteOrder from './components/CreateWasteOrder.jsx'
 import ExecutionHierarchyMap from './components/ExecutionHierarchyMap.jsx'
 import ClientHome from './components/ClientHome.jsx'
+import MarketplaceHome from './components/MarketplaceHome.jsx'
 import {
   CLIENT_TYPES, ORDER_STATUSES, PROFILE_FIELDS, WASTE_REMOVAL_TYPES, buildEstimateRows, buildRoughEstimateRows, cloneOrder, money,
   statusLabel, validateOrder, validateProfileField,
@@ -21,7 +22,7 @@ import { readJSON, removeKey, writeJSON } from './lib/storage.js'
 const ACCOUNT_KEY='bathdream.account'
 const ORDERS_KEY='bathdream.orders'
 
-function Header({authenticated,onHome,onStore,onOrders,onCreateOrder,onLogout}) {
+function Header({authenticated,onHome,onCabinet,onOrders,onCreateOrder,onLogout}) {
   return <header className="topbar">
     <div className="topbar__inner">
       <button className="brand brand-button" type="button" onClick={authenticated?onHome:undefined} aria-label="AW HOME">
@@ -30,7 +31,8 @@ function Header({authenticated,onHome,onStore,onOrders,onCreateOrder,onLogout}) 
       <div className="topbar__meta">
         <a className="phone" href="tel:88003338837">8 (800) 333 88 37</a>
         <button className="city" type="button">Москва⌄</button>
-        {authenticated&&<button className="nav-link" type="button" onClick={onStore}>Магазин</button>}
+        {authenticated&&<button className="nav-link" type="button" onClick={onHome}>Маркетплейс</button>}
+        {authenticated&&<button className="nav-link" type="button" onClick={onCabinet}>Кабинет</button>}
         {authenticated&&<button className="nav-link" type="button" onClick={onOrders}>Мои заказы</button>}
         {authenticated&&<button className="project-create-nav" type="button" onClick={onCreateOrder}>＋ Создать проект</button>}
         {authenticated&&<div className="header-balance"><span>Баланс</span><strong>— ₽</strong></div>}
@@ -1499,10 +1501,10 @@ export default function App() {
   const editingOrder=orders.find(order=>order.id===editingOrderId)
 
   return <div className="app-shell">
-    <Header authenticated={authenticated} onHome={()=>setScreen('home')} onStore={()=>setScreen('home')} onOrders={()=>setScreen('orders')} onCreateOrder={()=>setScreen('services')} onLogout={logout}/>
+    <Header authenticated={authenticated} onHome={()=>setScreen('home')} onCabinet={()=>setScreen('cabinet')} onOrders={()=>setScreen('orders')} onCreateOrder={()=>setScreen('services')} onLogout={logout}/>
     <main className={screen==='auth'?'main':'main main--workspace'}>
       {screen==='auth'&&<section className="auth-card">{renderAuth()}</section>}
-      {screen==='home'&&<ClientHome profile={profile} orders={orders} onOpenOrder={openOrder} onCreateProject={()=>setScreen('services')} onDemolition={createOrder} onWaste={createWasteOrder} onRough={createRoughOrder} onOrders={()=>setScreen('orders')}/>}
+      {screen==='home'&&<MarketplaceHome onDemolition={createOrder} onWaste={createWasteOrder} onRough={createRoughOrder} onOrders={()=>setScreen('orders')} onCabinet={()=>setScreen('cabinet')}/>}\n      {screen==='cabinet'&&<ClientHome profile={profile} orders={orders} onOpenOrder={openOrder} onCreateProject={()=>setScreen('services')} onDemolition={createOrder} onWaste={createWasteOrder} onRough={createRoughOrder} onOrders={()=>setScreen('orders')}/>}
       {screen==='services'&&<ServicesPage onDemolition={createOrder} onWaste={createWasteOrder} onRough={createRoughOrder}/>}
       {screen==='orders'&&<OrdersDashboard orders={orders} onCreateOrder={()=>setScreen('services')} onOpenOrder={openOrder} onEditOrder={editOrder} onDuplicate={duplicateOrder} onDelete={deleteOrder} onExport={exportData} onImport={importData} notice={notice} storageMode={remoteStatus}/>} 
       {screen==='create-order'&&<CreateOrder initialOrder={editingOrder} onCancel={()=>setScreen('orders')} onSave={saveOrder} pricing={pricing}/>}
