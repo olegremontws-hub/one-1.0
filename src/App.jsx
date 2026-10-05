@@ -210,13 +210,20 @@ function StatusBadge({status}) {
   return <span className={`status status--${status||'draft'}`}>{statusLabel(status)}</span>
 }
 
-function OrdersDashboard({orders,onCreateOrder,onOpenOrder,onEditOrder,onDuplicate,onDelete,onExport,onImport,notice,storageMode}) {
+function OrdersDashboard({orders,onCreateOrder,onMarketplace,onOpenOrder,onEditOrder,onDuplicate,onDelete,onExport,onImport,notice,storageMode}) {
   const inputRef=useRef(null)
+  const marketplaceOrders=(readJSON('awhome.marketplace.requests',[])||[])
+    .slice()
+    .sort((a,b)=>new Date(b.createdAt||0)-new Date(a.createdAt||0))
+  const hasAny=orders.length>0||marketplaceOrders.length>0
 
   return <section className="workspace">
     <div className="workspace__head">
-      <div><p className="eyebrow">Кабинет клиента</p><h1>Мои заказы</h1><p className="workspace__subtitle">Черновики сохраняются автоматически. Данные можно выгрузить резервной копией.</p></div>
-      <button className="button button--compact" type="button" onClick={onCreateOrder}>+ Создать заказ</button>
+      <div><p className="eyebrow">Кабинет клиента</p><h1>Мои заказы</h1><p className="workspace__subtitle">Ремонтные проекты и заявки маркетплейса собраны в одном разделе.</p></div>
+      <div className="orders-head-actions">
+        <button className="secondary-button" type="button" onClick={onMarketplace}>Маркетплейс</button>
+        <button className="button button--compact" type="button" onClick={onCreateOrder}>+ Создать проект</button>
+      </div>
     </div>
 
     <div className="data-toolbar">
@@ -230,26 +237,51 @@ function OrdersDashboard({orders,onCreateOrder,onOpenOrder,onEditOrder,onDuplica
 
     {notice&&<div className={`notice notice--${notice.type}`}>{notice.text}</div>}
 
-    {orders.length===0?<div className="empty-state"><div className="empty-state__icon">＋</div><h2>Заказов пока нет</h2><p>Выберите услугу и создайте первый расчёт по объекту и помещениям.</p><button className="button button--primary empty-state__button" type="button" onClick={onCreateOrder}>Создать заказ</button></div>:
-    <div className="order-list">{orders.map(order=><article className="order-card" key={order.id}>
-      <div className="order-card__top"><div><StatusBadge status={order.status}/><small className="order-service-label">{order.serviceType==='rough'?'Черновой ремонт':order.serviceType==='waste'?'Вывоз мусора':'Демонтаж'}</small><h2>Заказ №{order.id}</h2></div><strong>{money(order.total)} ₽</strong></div>
-      <dl>
-        <div><dt>Объект</dt><dd>{order.objectLabel||'—'}</dd></div>
-        <div><dt>Адрес</dt><dd>{order.address||'—'}</dd></div>
-        {order.serviceType==='waste'
-          ? <div><dt>Объём</dt><dd>{Number(order.wasteRemoval?.calculation?.volume||0).toFixed(2)} м³</dd></div>
-          : <div><dt>Помещения</dt><dd>{order.rooms?.length||0}</dd></div>}
-      </dl>
-      <div className="order-card__actions">
-        <button className="secondary-button secondary-button--inline" type="button" onClick={()=>onOpenOrder(order.id)}>Открыть</button>
-        <button className="secondary-button secondary-button--inline" type="button" onClick={()=>onEditOrder(order.id)}>Редактировать</button>
-        <button className="secondary-button secondary-button--inline" type="button" onClick={()=>onDuplicate(order.id)}>Дублировать</button>
-        <button className="danger-link" type="button" onClick={()=>onDelete(order.id)}>Удалить</button>
-      </div>
-    </article>)}</div>}
+    {!hasAny?<div className="empty-state"><div className="empty-state__icon">＋</div><h2>Заказов пока нет</h2><p>Выберите услугу в маркетплейсе или создайте ремонтный проект.</p><div className="empty-state-actions"><button className="button button--primary empty-state__button" type="button" onClick={onMarketplace}>Открыть маркетплейс</button><button className="secondary-button" type="button" onClick={onCreateOrder}>Создать проект</button></div></div>:<>
+      {marketplaceOrders.length>0&&<section className="market-orders">
+        <div className="market-orders__head"><div><p className="eyebrow">Маркетплейс</p><h2>Заявки на услуги</h2></div><span>{marketplaceOrders.length}</span></div>
+        <div className="market-order-grid">
+          {marketplaceOrders.map(request=><article className="market-order-card" key={request.id}>
+            <div className="market-order-card__top">
+              <div><span className="market-order-status">Новая заявка</span><small>{request.sectionTitle||'AW HOME'}</small><h3>{request.serviceTitle}</h3></div>
+              <strong>{request.estimate?.total?money(request.estimate.total)+' ₽':'по запросу'}</strong>
+            </div>
+            <dl>
+              <div><dt>Номер</dt><dd>{request.id}</dd></div>
+              <div><dt>Адрес</dt><dd>{request.address||'—'}</dd></div>
+              <div><dt>Дата</dt><dd>{request.date?request.date+' · '+(request.time||''):'—'}</dd></div>
+              <div><dt>Объект</dt><dd>{request.objectType||'—'}{request.area?' · '+request.area+' м²':''}</dd></div>
+            </dl>
+            <div className="market-order-card__bottom">
+              <span>Исполнитель: {request.performer==='choose'?'выберу сам':'подберёт AW HOME'}</span>
+              <button type="button" onClick={onMarketplace}>К услуге →</button>
+            </div>
+          </article>)}
+        </div>
+      </section>}
+
+      {orders.length>0&&<section className="project-orders">
+        <div className="market-orders__head"><div><p className="eyebrow">Проекты</p><h2>Ремонт и стройка</h2></div><span>{orders.length}</span></div>
+        <div className="order-list">{orders.map(order=><article className="order-card" key={order.id}>
+          <div className="order-card__top"><div><StatusBadge status={order.status}/><small className="order-service-label">{order.serviceType==='rough'?'Черновой ремонт':order.serviceType==='waste'?'Вывоз мусора':'Демонтаж'}</small><h2>Заказ №{order.id}</h2></div><strong>{money(order.total)} ₽</strong></div>
+          <dl>
+            <div><dt>Объект</dt><dd>{order.objectLabel||'—'}</dd></div>
+            <div><dt>Адрес</dt><dd>{order.address||'—'}</dd></div>
+            {order.serviceType==='waste'
+              ? <div><dt>Объём</dt><dd>{Number(order.wasteRemoval?.calculation?.volume||0).toFixed(2)} м³</dd></div>
+              : <div><dt>Помещения</dt><dd>{order.rooms?.length||0}</dd></div>}
+          </dl>
+          <div className="order-card__actions">
+            <button className="secondary-button secondary-button--inline" type="button" onClick={()=>onOpenOrder(order.id)}>Открыть</button>
+            <button className="secondary-button secondary-button--inline" type="button" onClick={()=>onEditOrder(order.id)}>Редактировать</button>
+            <button className="secondary-button secondary-button--inline" type="button" onClick={()=>onDuplicate(order.id)}>Дублировать</button>
+            <button className="danger-link" type="button" onClick={()=>onDelete(order.id)}>Удалить</button>
+          </div>
+        </article>)}</div>
+      </section>}
+    </>}
   </section>
 }
-
 
 const DOCUMENT_KIND_META={
   offer:{label:'Договор-оферта / Смарт-смета',short:'Оферта'},
@@ -1506,7 +1538,7 @@ export default function App() {
       {screen==='auth'&&<section className="auth-card">{renderAuth()}</section>}
       {screen==='home'&&<MarketplaceHome onDemolition={createOrder} onWaste={createWasteOrder} onRough={createRoughOrder} onOrders={()=>setScreen('orders')} onCabinet={()=>setScreen('cabinet')}/>}\n      {screen==='cabinet'&&<ClientHome profile={profile} orders={orders} onOpenOrder={openOrder} onCreateProject={()=>setScreen('services')} onDemolition={createOrder} onWaste={createWasteOrder} onRough={createRoughOrder} onOrders={()=>setScreen('orders')}/>}
       {screen==='services'&&<ServicesPage onDemolition={createOrder} onWaste={createWasteOrder} onRough={createRoughOrder}/>}
-      {screen==='orders'&&<OrdersDashboard orders={orders} onCreateOrder={()=>setScreen('services')} onOpenOrder={openOrder} onEditOrder={editOrder} onDuplicate={duplicateOrder} onDelete={deleteOrder} onExport={exportData} onImport={importData} notice={notice} storageMode={remoteStatus}/>} 
+      {screen==='orders'&&<OrdersDashboard orders={orders} onCreateOrder={()=>setScreen('services')} onMarketplace={()=>setScreen('home')} onOpenOrder={openOrder} onEditOrder={editOrder} onDuplicate={duplicateOrder} onDelete={deleteOrder} onExport={exportData} onImport={importData} notice={notice} storageMode={remoteStatus}/>} 
       {screen==='create-order'&&<CreateOrder initialOrder={editingOrder} onCancel={()=>setScreen('orders')} onSave={saveOrder} pricing={pricing}/>}
       {screen==='create-rough-order'&&<CreateRoughOrder initialOrder={editingOrder} onCancel={()=>setScreen('services')} onSave={saveOrder}/>}
       {screen==='create-waste-order'&&<CreateWasteOrder initialOrder={editingOrder} onCancel={()=>setScreen('home')} onSave={saveOrder}/>}
