@@ -2919,8 +2919,8 @@ textarea:focus {
 }
 .ks2-row {
   display:grid;
-  grid-template-columns:40px minmax(220px,2fr) 100px 70px 80px 100px 110px;
-  min-width:720px;
+  grid-template-columns:36px 64px minmax(220px,2fr) 92px 62px 78px 96px 108px;
+  min-width:820px;
   border-bottom:1px solid #bbb;
 }
 .ks2-row > * {
