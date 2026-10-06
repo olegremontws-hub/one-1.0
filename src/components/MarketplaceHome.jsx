@@ -89,6 +89,16 @@ export const MARKETPLACE_SECTIONS=[
   ]},
 ]
 
+function CategoryIcon({id}){
+  const common={width:18,height:18,viewBox:'0 0 24 24',fill:'none',stroke:'currentColor',strokeWidth:1.7,strokeLinecap:'round',strokeLinejoin:'round','aria-hidden':true}
+  if(id==='all') return <svg {...common}><rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><rect x="14" y="14" width="6" height="6" rx="1"/></svg>
+  if(id==='realty') return <svg {...common}><path d="M3.5 11.2 12 4l8.5 7.2"/><path d="M5.5 10v9.5h13V10"/><path d="M9.5 19.5v-5h5v5"/></svg>
+  if(id==='design') return <svg {...common}><path d="M4 19.5 9 18l9.8-9.8a2 2 0 0 0-2.8-2.8L6.2 15.2 4 19.5Z"/><path d="m14.8 6.6 2.6 2.6"/><path d="M4 4h6"/></svg>
+  if(id==='build') return <svg {...common}><path d="M4 20h16"/><path d="M6 20V8l6-4 6 4v12"/><path d="M9 20v-6h6v6"/><path d="M7.5 10h9"/></svg>
+  if(id==='manage') return <svg {...common}><rect x="4" y="3.5" width="16" height="17" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/><path d="M16.5 16.5h.01"/></svg>
+  return <svg {...common}><path d="M12 3.5c4 4.2 6.3 7 6.3 10.1A6.3 6.3 0 0 1 5.7 13.6C5.7 10.5 8 7.7 12 3.5Z"/><path d="M9.5 14.2c.7 1.2 1.7 1.8 3 1.8"/></svg>
+}
+
 const allServices=MARKETPLACE_SECTIONS.flatMap(section=>section.services.map(service=>({...service,sectionId:section.id,sectionTitle:section.title})))
 
 function parseBasePrice(price){
@@ -470,8 +480,8 @@ export default function MarketplaceHome({onDemolition,onWaste,onRough,onOrders,o
     </section>
 
     <nav className="market-category-nav" aria-label="Разделы маркетплейса">
-      <button className={activeSection==='all'?'is-active':''} type="button" onClick={()=>setActiveSection('all')}><span>◎</span><b>Все услуги</b></button>
-      {MARKETPLACE_SECTIONS.map(section=><button key={section.id} className={activeSection===section.id?'is-active':''} type="button" onClick={()=>setActiveSection(section.id)}><span>{section.icon}</span><b>{section.title}</b></button>)}
+      <button className={activeSection==='all'?'is-active':''} type="button" onClick={()=>setActiveSection('all')}><span><CategoryIcon id="all"/></span><b>Все услуги</b></button>
+      {MARKETPLACE_SECTIONS.map(section=><button key={section.id} className={activeSection===section.id?'is-active':''} type="button" onClick={()=>setActiveSection(section.id)}><span><CategoryIcon id={section.id}/></span><b>{section.title}</b></button>)}
     </nav>
 
     <div className="marketplace-layout">
