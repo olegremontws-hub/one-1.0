@@ -4,6 +4,14 @@ import { readJSON, writeJSON } from '../lib/storage.js'
 
 const ESTIMATOR_KEY='awhome.estimator.appointment'
 const MESSENGER_KEY='awhome.client.messenger'
+const CABINET_IMAGES={
+  demolition:'https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fit=crop&w=1000&q=82',
+  waste:'https://images.unsplash.com/photo-1519003722824-194d4455a60c?auto=format&fit=crop&w=1000&q=82',
+  rough:'https://images.unsplash.com/photo-1590725121839-892b458a74fe?auto=format&fit=crop&w=1000&q=82',
+  home:'https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&w=1200&q=84',
+  manager:'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=500&q=82',
+  profile:'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=500&q=82',
+}
 
 function clientName(profile){
   if(!profile) return 'Клиент'
@@ -13,6 +21,13 @@ function clientName(profile){
 function firstName(value){
   const text=String(value||'').trim()
   return text?text.split(/\s+/).slice(0,2).join(' '):'Клиент'
+}
+
+function orderImage(order){
+  if(order?.serviceType==='waste') return CABINET_IMAGES.waste
+  if(order?.serviceType==='rough') return CABINET_IMAGES.rough
+  if(order?.serviceType==='demolition'||!order?.serviceType) return CABINET_IMAGES.demolition
+  return CABINET_IMAGES.home
 }
 
 function serviceTitle(order){
@@ -205,207 +220,98 @@ export default function ClientHome({
   const sorted=useMemo(()=>[...(orders||[])].sort((a,b)=>new Date(b.updatedAt||b.createdAt||0)-new Date(a.updatedAt||a.createdAt||0)),[orders])
   const current=sorted.find(order=>order.status!=='done')||sorted[0]||null
   const activeOrders=sorted.filter(order=>order.status!=='done')
-  const totalEstimate=activeOrders.reduce((sum,order)=>sum+Number(order.total||0),0)
   const progress=current?orderProgress(current):0
   const currentDocs=current?orderDocuments(current):[]
   const currentPayments=current?orderPayments(current):[]
-  const acceptedOffer=currentDocs.find(item=>item.kind==='offer'&&item.status==='signed')
-  const ks2=currentDocs.find(item=>item.kind==='ks2')
   const paid=currentPayments.filter(item=>item.status==='paid').reduce((sum,item)=>sum+Number(item.amount||0),0)
-  const planned=currentPayments.filter(item=>item.status==='planned').reduce((sum,item)=>sum+Number(item.amount||0),0)
-  const recent=sorted.slice(0,4)
-  const projects=sorted.slice(0,8)
+  const favorites=(readJSON('awhome.marketplace.favorites',[])||[]).length
   const [appointment,setAppointment]=useState(()=>readJSON(ESTIMATOR_KEY,null))
   const [plannerOpen,setPlannerOpen]=useState(false)
 
-  return <section className="client-home">
-    <div className="client-home__welcome">
-      <div>
-        <p className="eyebrow">Кабинет заказчика AW HOME</p>
-        <h1>Доброе утро, {name}!</h1>
-        <p>Здесь собраны проекты, сметы, документы и ход выполнения работ.</p>
+  const documentSlots=[
+    {kind:'offer',title:'Договор-оферта',ext:'PDF',tone:'red'},
+    {kind:'estimate',title:'Смета',ext:'XLSX',tone:'green'},
+    {kind:'ks2',title:'КС-2',ext:'PDF',tone:'red'},
+    {kind:'act',title:'Акты работ',ext:'PDF',tone:'gold'},
+  ]
+
+  return <section className="client-home client-home--showcase">
+    <section className="cabinet-profile-head">
+      <div className="cabinet-profile-head__user">
+        <span className="cabinet-profile-avatar" style={{backgroundImage:`url("${CABINET_IMAGES.profile}")`}}/>
+        <div><small>Добро пожаловать,</small><h1>{name}</h1><span>Ваш личный кабинет AW HOME</span></div>
       </div>
-      <div className="estimator-call">
-        <span>Вызов сметчика: <b>{appointment?`${dateLabel(appointment.date)} · ${appointment.time}`:'Не выбрано'}</b></span>
-        <button className="secondary-button" type="button" onClick={()=>setPlannerOpen(value=>!value)}>
-          {appointment?'Изменить время':'Время приезда сметчика'}
-        </button>
+      <div className="estimator-call estimator-call--cabinet">
+        <span>Выезд сметчика: <b>{appointment?`${dateLabel(appointment.date)} · ${appointment.time}`:'не запланирован'}</b></span>
+        <button type="button" onClick={()=>setPlannerOpen(value=>!value)}>{appointment?'Изменить':'Запланировать'}</button>
         {plannerOpen&&<EstimatorPlanner appointment={appointment} onChange={setAppointment} onClose={()=>setPlannerOpen(false)}/>}
       </div>
-    </div>
+    </section>
 
-    <div className="home-metrics">
-      <QuickMetric label="Активные заказы" value={activeOrders.length} caption={activeOrders.length?'Открыть список':'Заказов пока нет'} onClick={onOrders}/>
-      <QuickMetric label="Сумма активных смет" value={totalEstimate?money(totalEstimate)+' ₽':'—'} caption="По текущим заказам"/>
-      <QuickMetric label="Готовность текущего проекта" value={current?progress+'%':'—'} caption={current?orderStage(current):'Создайте проект'} onClick={current?()=>onOpenOrder(current.id):onCreateProject}/>
-      <QuickMetric label="Следующее действие" value={current?nextAction(current):'Создать проект'} caption={current?'Заказ №'+current.id:'Выберите услугу'} onClick={current?()=>onOpenOrder(current.id):onCreateProject}/>
-    </div>
+    <section className="cabinet-current-project">
+      <div className="cabinet-current-project__copy">
+        <span>Текущий проект</span>
+        <h2>{current?(current.objectLabel||serviceTitle(current)):'Создайте первый проект'}</h2>
+        <p>{current?(current.address||'Адрес объекта пока не указан'):'Демонтаж, вывоз мусора и черновой ремонт доступны в калькуляторах AW HOME.'}</p>
+        {current?<><div className="cabinet-stage-line"><span>{orderStage(current)}</span><b>{progress}%</b></div><div className="cabinet-stage-progress"><i style={{width:progress+'%'}}/></div></>:null}
+        <button type="button" onClick={current?()=>onOpenOrder(current.id):onCreateProject}>{current?'Открыть проект →':'Создать проект →'}</button>
+      </div>
+      <div className="cabinet-current-project__image" style={{backgroundImage:`url("${current?orderImage(current):CABINET_IMAGES.home}")`}}/>
+    </section>
+
+    <section className="cabinet-shortcuts">
+      <button type="button" onClick={onOrders}><span>▣</span><strong>Мои заказы</strong><small>{activeOrders.length} активных</small></button>
+      <button type="button" onClick={current?()=>onOpenOrder(current.id):onCreateProject}><span>▤</span><strong>Документы</strong><small>{currentDocs.length} файлов</small></button>
+      <button type="button"><span>♡</span><strong>Избранное</strong><small>{favorites} услуг</small></button>
+      <button type="button" onClick={current?()=>onOpenOrder(current.id):onCreateProject}><span>▱</span><strong>Платежи</strong><small>{paid?money(paid)+' ₽ оплачено':'Нет оплат'}</small></button>
+      <button type="button"><span>●</span><strong>Уведомления</strong><small>{activeOrders.length?'Есть активные проекты':'Новых нет'}</small></button>
+    </section>
+
+    <section className="cabinet-showcase-section">
+      <div className="cabinet-section-head"><div><h2>Активные заказы</h2><p>Сроки, статус и готовность по текущим работам.</p></div><button type="button" onClick={onOrders}>Все заказы →</button></div>
+      <div className="cabinet-order-list">
+        {activeOrders.length?activeOrders.slice(0,3).map(order=>{
+          const value=orderProgress(order)
+          return <button className="cabinet-order-row" key={order.id} type="button" onClick={()=>onOpenOrder(order.id)}>
+            <span className="cabinet-order-row__image" style={{backgroundImage:`url("${orderImage(order)}")`}}/>
+            <span className="cabinet-order-row__copy"><small>{serviceTitle(order)}</small><strong>{order.objectLabel||'Заказ №'+order.id}</strong><i>⌖ {order.address||'Адрес не указан'}</i></span>
+            <span className="cabinet-order-row__progress"><small>{orderStage(order)}</small><span><i style={{width:value+'%'}}/></span><b>{value}%</b></span>
+            <span className="cabinet-order-row__price"><strong>{money(order.total||0)} ₽</strong><small>Заказ №{order.id}</small></span>
+            <span className="cabinet-order-row__action">Детали →</span>
+          </button>
+        }):<div className="cabinet-empty-visual" style={{backgroundImage:`linear-gradient(90deg,rgba(7,23,46,.9),rgba(7,23,46,.35)),url("${CABINET_IMAGES.rough}")`}}><div><strong>Проектов пока нет</strong><span>Запустите первый расчёт — заказ появится здесь.</span><button type="button" onClick={onCreateProject}>Создать проект →</button></div></div>}
+      </div>
+    </section>
+
+    <section className="cabinet-showcase-section">
+      <div className="cabinet-section-head"><div><h2>Документы по проекту</h2><p>Договор, смета, КС-2 и акты собраны в одном месте.</p></div>{current&&<button type="button" onClick={()=>onOpenOrder(current.id)}>Все документы →</button>}</div>
+      <div className="cabinet-document-grid">
+        {documentSlots.map(slot=>{
+          const doc=currentDocs.find(item=>item.kind===slot.kind)
+          return <button className="cabinet-document-card" key={slot.kind} type="button" onClick={current?()=>onOpenOrder(current.id):onCreateProject}>
+            <span className={'cabinet-document-icon cabinet-document-icon--'+slot.tone}>▤</span>
+            <strong>{slot.title}</strong>
+            <small>{doc?(doc.number||slot.ext):'Готов к формированию'}</small>
+            <b>{doc?'Открыть':'Создать'} →</b>
+          </button>
+        })}
+      </div>
+    </section>
 
     <Messenger current={current} onOpenOrder={onOpenOrder}/>
 
-    <section className="home-section">
-      <div className="home-section__title">
-        <div>
-          <h2>Недавние действия</h2>
-          <p>Актуальная информация по проектам, документам и выполнению работ.</p>
-        </div>
-        <button className="home-text-action" type="button" onClick={onOrders}>Все заказы →</button>
-      </div>
-
-      <div className="recent-grid recent-grid--complete">
-        <article className="recent-info-card recent-activity-card">
-          <span className="recent-info-card__icon">↗</span>
-          <div>
-            <strong>Последние изменения</strong>
-            <div className="activity-list">
-              {recent.length?recent.map(order=><button type="button" key={order.id} onClick={()=>onOpenOrder(order.id)}>
-                <span><b>№{order.id}</b> · {serviceTitle(order)}</span>
-                <small>{dateTimeLabel(order.updatedAt||order.createdAt)}</small>
-              </button>):<p>После создания заказа здесь появятся последние действия.</p>}
-            </div>
-          </div>
-        </article>
-
-        {current?<button className="current-order-card current-order-card--wide" type="button" onClick={()=>onOpenOrder(current.id)}>
-          <div className="current-order-card__top">
-            <span>Заказ № {current.id}</span>
-            <small>{statusLabel(current.status)}</small>
-          </div>
-          <strong>{serviceTitle(current)}</strong>
-          <p>{current.address||'Адрес не указан'}</p>
-          <div className="home-order-progress"><span style={{width:progress+'%'}}/></div>
-          <div className="current-order-card__stats">
-            <span><small>Готовность</small><b>{progress}%</b></span>
-            <span><small>Смета</small><b>{money(current.total||0)} ₽</b></span>
-            <span><small>Этап</small><b>{orderStage(current)}</b></span>
-          </div>
-          <div className="current-order-card__bottom">
-            <span>{dateLabel(current.createdAt)} → {dateLabel(current.updatedAt)}</span>
-            <b>Перейти →</b>
-          </div>
-        </button>:<article className="current-order-card current-order-card--empty">
-          <span>Текущий заказ</span>
-          <strong>Пока нет активных заказов</strong>
-          <p>Новый проект появится здесь после первого расчёта.</p>
-        </article>}
-
-        <button className="new-project-card" type="button" onClick={onCreateProject}>
-          <span className="new-project-card__plus">＋</span>
-          <strong>Создать новый заказ</strong>
-          <small>Демонтаж · вывоз · черновой ремонт</small>
-        </button>
+    <section className="cabinet-showcase-section">
+      <div className="cabinet-section-head"><div><h2>Быстрые услуги</h2><p>Продолжить работу по объекту без поиска по каталогу.</p></div></div>
+      <div className="cabinet-service-tiles">
+        <button type="button" onClick={onDemolition}><span style={{backgroundImage:`url("${CABINET_IMAGES.demolition}")`}}/><div><strong>Демонтаж</strong><small>Расчёт по помещениям</small></div></button>
+        <button type="button" onClick={onWaste}><span style={{backgroundImage:`url("${CABINET_IMAGES.waste}")`}}/><div><strong>Вывоз мусора</strong><small>Объём, транспорт, утилизация</small></div></button>
+        <button type="button" onClick={onRough}><span style={{backgroundImage:`url("${CABINET_IMAGES.rough}")`}}/><div><strong>Черновой ремонт</strong><small>Основания и инженерия</small></div></button>
       </div>
     </section>
 
-    {current&&<section className="home-section project-control">
-      <div className="home-section__title">
-        <div><h2>Текущий проект</h2><p>Смета, договор, оплаты и выполнение в одном блоке.</p></div>
-        <button className="home-text-action" type="button" onClick={()=>onOpenOrder(current.id)}>Открыть карточку →</button>
-      </div>
-      <div className="project-control__grid">
-        <article className="project-control-card">
-          <span className="project-control-card__icon">₽</span>
-          <div><small>Смета</small><strong>{money(current.total||0)} ₽</strong><p>{current.priceBook?`${current.priceBook.code} v${current.priceBook.version}`:'Расчёт заказа'}</p></div>
-        </article>
-        <article className="project-control-card">
-          <span className="project-control-card__icon">§</span>
-          <div><small>Договор-оферта</small><strong>{acceptedOffer?'Принята':'Не принята'}</strong><p>{acceptedOffer?acceptedOffer.number:'Можно сформировать в документах заказа'}</p></div>
-        </article>
-        <article className="project-control-card">
-          <span className="project-control-card__icon">✓</span>
-          <div><small>КС-2</small><strong>{ks2?(ks2.status==='signed'?'Принят':'Сформирован'):'Нет документа'}</strong><p>{ks2?ks2.number:'Формируется после акцепта оферты'}</p></div>
-        </article>
-        <article className="project-control-card">
-          <span className="project-control-card__icon">₽</span>
-          <div><small>Оплата</small><strong>{paid?money(paid)+' ₽':'Нет оплат'}</strong><p>{planned?`Запланировано ещё ${money(planned)} ₽`:'План оплат появится в заказе'}</p></div>
-        </article>
-        <article className="project-control-card project-control-card--progress">
-          <span className="project-control-card__icon">→</span>
-          <div><small>Ход выполнения</small><strong>{progress}%</strong><p>{orderStage(current)}</p><div className="mini-progress"><span style={{width:progress+'%'}}/></div></div>
-        </article>
-        <button className="project-control-card project-control-card--action" type="button" onClick={()=>onOpenOrder(current.id)}>
-          <span className="project-control-card__icon">↗</span>
-          <div><small>Следующее действие</small><strong>{nextAction(current)}</strong><p>Перейти в заказ →</p></div>
-        </button>
-      </div>
-    </section>}
-
-    <section className="home-section">
-      <div className="home-section__title">
-        <div><h2>Основные услуги</h2><p>Быстрый запуск расчёта по вашему объекту.</p></div>
-      </div>
-      <div className="home-core-services">
-        <button type="button" onClick={onDemolition}>
-          <span>01</span><div><strong>Демонтаж</strong><p>Помещения → геометрия → работы → смета → мусор</p></div><b>Рассчитать →</b>
-        </button>
-        <button type="button" onClick={onWaste}>
-          <span>02</span><div><strong>Вывоз строительного мусора</strong><p>Объём → условия → транспорт → утилизация → цена</p></div><b>Рассчитать →</b>
-        </button>
-        <button type="button" onClick={onRough}>
-          <span>03</span><div><strong>Черновой ремонт</strong><p>Геометрия → инженерия → основания → смета</p></div><b>Рассчитать →</b>
-        </button>
-      </div>
-    </section>
-
-    <section className="home-section">
-      <div className="home-section__title"><h2>Дополнительные услуги</h2><button className="home-text-action" type="button">Смотреть все →</button></div>
-      <div className="extra-services">
-        {[
-          ['Клининг','CL','Скоро',null],
-          ['Утилизация строймусора','UT','Заказать',onWaste],
-          ['Видео-наблюдение','VD','Скоро',null],
-          ['Установка сигнализации','SG','Скоро',null],
-          ['Химчистка','HC','Скоро',null],
-        ].map(([title,code,action,handler])=><button className="extra-service-card" key={title} type="button" onClick={handler||undefined}>
-          <span className={'extra-service-card__visual extra-service-card__visual--'+code.toLowerCase()}>{code}</span>
-          <span className="extra-service-card__content"><strong>{title}</strong><small>{action}</small></span>
-        </button>)}
-      </div>
-    </section>
-
-    <section className="home-section home-catalog">
-      <div className="catalog-tabs">
-        <button className="is-active" type="button">Проекты</button>
-        <button type="button">Объекты</button>
-        <button type="button">Отзывы</button>
-        <button type="button">Товары</button>
-      </div>
-      <div className="catalog-toolbar">
-        <div>
-          <button type="button">Все категории ({Math.max(orders?.length||0,3)})⌄</button>
-          <button type="button">Размеры⌄</button>
-          <button type="button">Статус⌄</button>
-        </div>
-        <button className="catalog-see-all" type="button" onClick={onOrders}>Смотреть все →</button>
-      </div>
-
-      <div className="project-masonry">
-        {projects.length?projects.map((order,index)=>{
-          const tileProgress=orderProgress(order)
-          return <button className={'project-tile project-tile--'+((index%4)+1)} key={order.id} type="button" onClick={()=>onOpenOrder(order.id)}>
-            <div className="project-tile__image">
-              <span>{serviceTitle(order)}</span>
-              <b>№ {order.id}</b>
-              <div className="project-tile__progress"><i style={{width:tileProgress+'%'}}/></div>
-            </div>
-            <strong>{order.objectLabel||serviceTitle(order)}</strong>
-            <p>{order.address||'Адрес объекта'}</p>
-            <div className="project-tile__footer"><span>{money(order.total||0)} ₽</span><small>{tileProgress}%</small></div>
-          </button>
-        }):[
-          ['Санузел','Проект ванной комнаты'],
-          ['Квартира','Черновой ремонт'],
-          ['Объект','Демонтаж и подготовка'],
-          ['Сервис','Вывоз строймусора'],
-        ].map(([tag,title],index)=><article className={'project-tile project-tile--'+((index%4)+1)} key={title}>
-          <div className="project-tile__image"><span>{tag}</span><b>AW HOME</b></div>
-          <strong>{title}</strong>
-          <p>Создайте заказ, чтобы здесь появился проект.</p>
-          <span>— ₽</span>
-        </article>)}
-      </div>
-
-      <button className="load-more" type="button" onClick={onOrders}>Загрузить ещё</button>
+    <section className="cabinet-support-banner">
+      <div><small>Нужна помощь с выбором?</small><h2>Персональный менеджер разберёт проект и подберёт следующий шаг</h2><button type="button" onClick={()=>document.querySelector('.cabinet-messenger')?.scrollIntoView({behavior:'smooth'})}>Написать менеджеру →</button></div>
+      <span style={{backgroundImage:`url("${CABINET_IMAGES.manager}")`}}/>
     </section>
   </section>
 }
