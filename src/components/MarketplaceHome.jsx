@@ -208,44 +208,77 @@ function ServiceCard({service,favorite,onToggleFavorite,onOpen}){
 
 function ServiceDetail({service,onBack,onOrder,onCalculator}){
   const includes=serviceIncludes(service)
-  return <section className="service-detail-page">
-    <button className="market-back" type="button" onClick={onBack}>← Все услуги</button>
-    <div className="service-detail-hero">
-      <div className="service-detail-hero__image" style={{backgroundImage:`linear-gradient(180deg,rgba(7,23,46,.02),rgba(7,23,46,.30)),url("${service.image}")`}}/>
-      <div className="service-detail-hero__content">
-        <span className="service-detail-chip">{service.sectionTitle}</span>
-        <h1>{service.title}</h1>
-        <p>{service.description}</p>
-        <div className="service-detail-price"><small>Ориентир</small><strong>{service.price}</strong></div>
-        <div className="service-detail-actions">
-          {service.live&&<button className="market-cta" type="button" onClick={onCalculator}>Рассчитать в калькуляторе →</button>}
-          <button className={service.live?'market-ghost':'market-cta'} type="button" onClick={onOrder}>{service.live?'Быстрая заявка':'Заказать услугу →'}</button>
-        </div>
+  const related=allServices.filter(item=>item.sectionId===service.sectionId&&item.id!==service.id).slice(0,4)
+  const gallery=[service.image,...related.map(item=>item.image)].slice(0,5)
+  return <section className="service-detail-page service-detail-page--showcase">
+    <div className="service-breadcrumbs">
+      <button type="button" onClick={onBack}>Главная</button><span>›</span><button type="button" onClick={onBack}>{service.sectionTitle}</button><span>›</span><b>{service.title}</b>
+    </div>
+
+    <div className="service-showcase-gallery">
+      <div className="service-showcase-gallery__main" style={{backgroundImage:`linear-gradient(180deg,rgba(7,23,46,.02),rgba(7,23,46,.16)),url("${gallery[0]}")`}}>
+        <span className="service-gallery-badge">Проверенная услуга</span>
+      </div>
+      <div className="service-showcase-gallery__thumbs">
+        {gallery.slice(1).map((image,index)=><span key={image+index} style={{backgroundImage:`url("${image}")`}}/>)}
       </div>
     </div>
 
-    <div className="service-detail-grid">
+    <div className="service-showcase-head">
+      <div>
+        <span className="service-detail-chip">{service.sectionTitle}</span>
+        <h1>{service.title}</h1>
+        <div className="service-rating-row"><b>★ 4.9</b><span>(324 отзыва)</span><i>✓ Проверенные исполнители</i></div>
+        <p>{service.description} Работаем по согласованному составу, фиксируем параметры заказа и сохраняем историю в кабинете AW HOME.</p>
+      </div>
+      <div className="service-showcase-price">
+        <span>Стоимость</span>
+        <strong>{service.price}</strong>
+        <small>точная цена после параметров</small>
+        {service.live&&<button className="market-cta" type="button" onClick={onCalculator}>Рассчитать →</button>}
+        <button className={service.live?'market-ghost':'market-cta'} type="button" onClick={onOrder}>Оформить заказ</button>
+      </div>
+    </div>
+
+    <div className="service-benefits">
+      <div><span>♙</span><strong>Опытные бригады</strong><small>Подбор под задачу</small></div>
+      <div><span>▣</span><strong>Вывоз и логистика</strong><small>При необходимости</small></div>
+      <div><span>◷</span><strong>Контроль сроков</strong><small>Статусы в кабинете</small></div>
+      <div><span>◇</span><strong>Гарантия процесса</strong><small>Фиксация результата</small></div>
+    </div>
+
+    <div className="service-detail-tabs"><button className="is-active" type="button">Описание</button><button type="button">Что входит</button><button type="button">Этапы работ</button><button type="button">Цены</button><button type="button">Отзывы</button></div>
+
+    <div className="service-detail-grid service-detail-grid--showcase">
       <section className="service-detail-card">
-        <span className="eyebrow">Что входит</span>
-        <h2>Состав услуги</h2>
-        <div className="service-includes">{includes.map((item,index)=><div key={item}><span>0{index+1}</span><strong>{item}</strong></div>)}</div>
+        <span className="eyebrow">Что входит в услугу</span>
+        <h2>Состав работ</h2>
+        <div className="service-includes">{includes.map((item,index)=><div key={item}><span>✓</span><strong>{item}</strong></div>)}</div>
       </section>
-      <section className="service-detail-card">
-        <span className="eyebrow">Как это работает</span>
-        <h2>От заявки до результата</h2>
-        <ol className="service-process">
-          <li><span>1</span><div><strong>Заполняете параметры</strong><small>Объект, адрес и задача.</small></div></li>
-          <li><span>2</span><div><strong>Выбираете дату</strong><small>Удобный день и интервал времени.</small></div></li>
-          <li><span>3</span><div><strong>Подтверждаем заказ</strong><small>Стоимость и исполнитель фиксируются перед стартом.</small></div></li>
-          <li><span>4</span><div><strong>Контролируем результат</strong><small>Статус заказа остаётся в кабинете AW HOME.</small></div></li>
-        </ol>
+      <section className="service-detail-card service-detail-card--facts">
+        <div><span>▣</span><small>Срок выполнения</small><strong>от 1 дня</strong></div>
+        <div><span>♙</span><small>Бригада</small><strong>2–4 человека</strong></div>
+        <div><span>▤</span><small>Документы</small><strong>Смета и договор</strong></div>
+        <div><span>✓</span><small>Контроль</small><strong>В кабинете</strong></div>
       </section>
     </div>
 
-    <div className="service-detail-note">
-      <strong>Цена на карточке — ориентир.</strong>
-      <span>Точная стоимость зависит от параметров объекта, адреса, объёма и выбранных условий.</span>
-    </div>
+    <section className="service-order-strip">
+      <div><span className="eyebrow">Оформить заказ</span><h2>Заполните параметры — мы рассчитаем точную стоимость</h2></div>
+      <button className="market-cta" type="button" onClick={service.live?onCalculator:onOrder}>{service.live?'Перейти к расчёту →':'Начать оформление →'}</button>
+    </section>
+
+    {related.length>0&&<section className="service-related">
+      <div className="market-home-section__head"><div><h2>Похожие услуги</h2><p>Можно добавить в один проект или оформить отдельно.</p></div></div>
+      <div className="market-service-grid">
+        {related.map(item=><article className="market-service-card" key={item.id}>
+          <div className="market-service-card__image" style={{backgroundImage:`url("${item.image}")`}}/>
+          <div className="market-service-card__body"><strong>{item.title}</strong><p>{item.description}</p><div className="market-service-card__meta"><span>{item.price}</span><button type="button" onClick={onBack}>Смотреть →</button></div></div>
+        </article>)}
+      </div>
+    </section>}
+
+    <div className="service-detail-note"><strong>Цена на карточке — ориентир.</strong><span>Финальная стоимость подтверждается до начала работ и фиксируется в заказе.</span></div>
   </section>
 }
 
@@ -450,61 +483,79 @@ export default function MarketplaceHome({onDemolition,onWaste,onRough,onOrders,o
   if(view==='checkout'&&selected) return <Checkout service={selected} onBack={()=>setView('detail')} onDone={request=>{setSuccess(request);setView('success')}}/>
   if(view==='success'&&success) return <Success request={success} onOrders={onOrders} onCatalog={()=>{setView('catalog');setSuccess(null);setSelected(null)}}/>
 
-  const popular=['demolition','waste','rough'].map(id=>allServices.find(service=>service.id===id)).filter(Boolean)
+  const popularIds=['demolition','waste','rough','electric','plumbing','design-project','care-general','realty-accept']
+  const popular=popularIds.map(id=>allServices.find(service=>service.id===id)).filter(Boolean)
+  const categoryServices=activeSection==='all'?popular:(shownSections[0]?.services||[])
+  const searching=query.trim().length>0
+  const searchResults=searching?shownSections.flatMap(section=>section.services):[]
 
-  return <section className="marketplace-home">
-    <div className="marketplace-topline">
-      <button className="marketplace-location" type="button">● Москва <span>⌄</span></button>
-      <label className="marketplace-search"><span>⌕</span><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Найти услугу: ремонт квартиры, дизайн, клининг…"/></label>
-      <button type="button" className="marketplace-mini-link" onClick={()=>setActiveSection('all')}>♡ Избранное <b>{favorites.length||''}</b></button>
-      <button type="button" className="marketplace-mini-link" onClick={onOrders}>Мои заказы</button>
-      <button type="button" className="marketplace-profile-link" onClick={onCabinet}>◎ Кабинет</button>
-    </div>
-
-    <section className="marketplace-hero">
+  return <section className="marketplace-home marketplace-home--showcase">
+    <section className="marketplace-hero marketplace-hero--showcase">
       <div className="marketplace-hero__content">
-        <p className="eyebrow">AW HOME · маркетплейс услуг</p>
-        <h1>Все услуги для дома — в одном месте</h1>
-        <p>Недвижимость, проектирование, ремонт, управление и уход. Выберите услугу, адрес и удобное время.</p>
-        <div className="marketplace-hero__actions">
-          <button className="market-cta" type="button" onClick={()=>setActiveSection('build')}>Подобрать услугу</button>
-          <button className="market-ghost" type="button" onClick={onOrders}>Мои проекты</button>
+        <p className="eyebrow">AW HOME · сервис для дома</p>
+        <h1>Все услуги для вашего дома — в надёжных руках</h1>
+        <p>Недвижимость, проектирование, ремонт, управление и забота об объекте в одном сервисе.</p>
+        <label className="hero-service-search">
+          <span>⌕</span>
+          <input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Какая услуга вам нужна?"/>
+          <button type="button">Найти</button>
+        </label>
+        <div className="hero-trust-row">
+          <span>◇ Проверенные специалисты</span>
+          <span>▤ Прозрачные цены</span>
+          <span>◇ Гарантия качества</span>
+          <span>▣ Безопасная оплата</span>
+          <span>☎ Поддержка 24/7</span>
         </div>
-      </div>
-      <div className="marketplace-hero__trust">
-        <strong>Один сервис на весь жизненный цикл дома</strong>
-        <span>◇ Понятный состав услуги</span>
-        <span>♢ Адрес и время заказа</span>
-        <span>☆ Контроль в кабинете</span>
       </div>
     </section>
 
-    <nav className="market-category-nav" aria-label="Разделы маркетплейса">
-      <button className={activeSection==='all'?'is-active':''} type="button" onClick={()=>setActiveSection('all')}><span><CategoryIcon id="all"/></span><b>Все услуги</b></button>
-      {MARKETPLACE_SECTIONS.map(section=><button key={section.id} className={activeSection===section.id?'is-active':''} type="button" onClick={()=>setActiveSection(section.id)}><span><CategoryIcon id={section.id}/></span><b>{section.title}</b></button>)}
-    </nav>
+    {searching?<section className="market-home-section">
+      <div className="market-home-section__head"><div><h2>Результаты поиска</h2><p>Найдено услуг: {searchResults.length}</p></div><button type="button" onClick={()=>setQuery('')}>Очистить →</button></div>
+      <div className="market-service-grid market-service-grid--featured">
+        {searchResults.map(service=><ServiceCard key={service.id} service={service} favorite={favorites.includes(service.id)} onToggleFavorite={toggleFavorite} onOpen={openService}/>)}
+      </div>
+    </section>:<>
+      <section className="market-home-section">
+        <div className="market-home-section__head"><div><h2>Популярные категории</h2><p>Выберите направление — покажем подходящие услуги.</p></div><button type="button" onClick={()=>setActiveSection('all')}>Все категории →</button></div>
+        <div className="market-category-cards">
+          {MARKETPLACE_SECTIONS.map(section=>{
+            const image=section.services[0]?.image
+            return <button key={section.id} type="button" className={activeSection===section.id?'market-category-card is-active':'market-category-card'} onClick={()=>setActiveSection(section.id)}>
+              <span className="market-category-card__image" style={{backgroundImage:`linear-gradient(180deg,rgba(7,23,46,.02),rgba(7,23,46,.18)),url("${image}")`}}/>
+              <span className="market-category-card__copy"><strong>{section.title}</strong><small>{section.services.slice(0,3).map(item=>item.title).join(', ')}</small><b>→</b></span>
+            </button>
+          })}
+        </div>
+      </section>
 
-    <div className="marketplace-layout">
-      <main className="marketplace-catalog">
-        {shownSections.length?shownSections.map(section=><section className="market-section" key={section.id}>
-          <div className="market-section__head"><div><span>{section.number}</span><h2>{section.title}</h2></div><button type="button" onClick={()=>setActiveSection(section.id)}>Все услуги →</button></div>
-          <div className="market-service-grid">
-            {section.services.map(service=><ServiceCard key={service.id} service={service} favorite={favorites.includes(service.id)} onToggleFavorite={toggleFavorite} onOpen={openService}/>)}
-          </div>
-        </section>):<div className="market-empty"><strong>Ничего не найдено</strong><p>Попробуйте изменить поисковый запрос или открыть все категории.</p><button type="button" onClick={()=>{setQuery('');setActiveSection('all')}}>Показать все услуги</button></div>}
-      </main>
+      <section className="market-home-section">
+        <div className="market-home-section__head"><div><h2>{activeSection==='all'?'Популярные услуги':MARKETPLACE_SECTIONS.find(item=>item.id===activeSection)?.title}</h2><p>{activeSection==='all'?'Чаще всего заказывают сейчас':'Все услуги выбранного направления'}</p></div>{activeSection!=='all'&&<button type="button" onClick={()=>setActiveSection('all')}>← Все услуги</button>}</div>
+        <div className="market-filter-pills">
+          <button className={activeSection==='all'?'is-active':''} type="button" onClick={()=>setActiveSection('all')}>Все услуги</button>
+          {MARKETPLACE_SECTIONS.map(section=><button className={activeSection===section.id?'is-active':''} key={section.id} type="button" onClick={()=>setActiveSection(section.id)}>{section.title}</button>)}
+        </div>
+        <div className="market-service-grid market-service-grid--featured">
+          {categoryServices.map(service=><ServiceCard key={service.id} service={service} favorite={favorites.includes(service.id)} onToggleFavorite={toggleFavorite} onOpen={openService}/>)}
+        </div>
+      </section>
+    </>}
 
-      <aside className="marketplace-sidebar">
-        <div className="marketplace-promo"><span>AW HOME</span><h2>Ваш дом в надёжных руках</h2><p>От первой сметы до регулярного ухода за объектом.</p><button className="market-cta" type="button" onClick={()=>setActiveSection('build')}>Выбрать услугу →</button></div>
-        <section className="marketplace-popular">
-          <div className="marketplace-popular__head"><h3>Популярные услуги</h3><span>AW HOME</span></div>
-          {popular.map(service=><button className="popular-service" key={service.id} type="button" onClick={()=>openService(service)}><span className="popular-service__image" style={{backgroundImage:`url("${service.image}")`}}/><span className="popular-service__info"><strong>{service.title}</strong><small>{service.price}</small></span><span className="popular-service__rating">→</span></button>)}
-        </section>
-        <section className="marketplace-trust-metrics"><div><strong>5</strong><span>разделов</span></div><div><strong>30</strong><span>услуг v0.19</span></div><div><strong>1</strong><span>единый кабинет</span></div></section>
-      </aside>
+    <section className="market-home-banner">
+      <div><span>Комплексное решение</span><h2>Для вашего дома — от идеи до заботы</h2><p>Подберём услуги, соберём проект и сохраним всё в одном кабинете AW HOME.</p><button className="market-cta" type="button" onClick={()=>openService(allServices.find(item=>item.id==='turnkey')||allServices[0])}>Получить консультацию →</button></div>
+    </section>
+
+    <section className="market-home-stats">
+      <div><strong>15 000+</strong><span>сценариев услуг</span></div>
+      <div><strong>4.8</strong><span>целевая оценка сервиса</span></div>
+      <div><strong>98%</strong><span>контролируемых этапов</span></div>
+      <div><strong>24/7</strong><span>кабинет и поддержка</span></div>
+    </section>
+
+    <div className="market-home-shortcuts">
+      <button type="button" onClick={onOrders}>Мои заказы</button>
+      <button type="button" onClick={onCabinet}>Личный кабинет</button>
     </div>
-
-    <section className="marketplace-help"><div><strong>Не знаете, что выбрать?</strong><span>Откройте услугу — внутри есть состав, сценарий и форма заказа.</span></div><button className="market-cta" type="button" onClick={()=>openService(allServices[0])}>Посмотреть пример →</button></section>
     <p className="marketplace-disclaimer">Цены в демо-каталоге ориентировочные и не являются публичной офертой. Финальная стоимость определяется после подтверждения параметров заказа.</p>
   </section>
 }
