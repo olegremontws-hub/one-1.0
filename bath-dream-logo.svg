@@ -1,0 +1,8 @@
+<svg width="180" height="44" viewBox="0 0 180 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="44" height="44" rx="14" fill="#173B36"/>
+  <path d="M10 26.5C14.5 22.5 18.5 22 22 24.2C25.5 26.4 29.5 26 34 21.5" stroke="#49C8B7" stroke-width="3.2" stroke-linecap="round"/>
+  <path d="M13 15.5H25.2C30.4 15.5 34 18.8 34 23.5V27.5" stroke="white" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="15.5" cy="15.5" r="1.8" fill="#49C8B7"/>
+  <text x="57" y="19" font-family="Manrope, Arial, sans-serif" font-size="15" font-weight="800" letter-spacing="1.2" fill="#173B36">BATH</text>
+  <text x="57" y="34" font-family="Manrope, Arial, sans-serif" font-size="15" font-weight="700" letter-spacing=".2" fill="#49C8B7">DREAM</text>
+</svg>
