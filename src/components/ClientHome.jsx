@@ -115,34 +115,66 @@ function Messenger({current,onOpenOrder}){
       defaultMessage:'Чат проекта создан. Сообщения по заказу №'+current.id+' будут собраны здесь.',
     }]:[]),
   ],[current])
+
+  const channels=useMemo(()=>[
+    {id:'internal',label:'AW HOME',icon:'AW',caption:'В кабинете',url:''},
+    {id:'max',label:'MAX',icon:'M',caption:import.meta.env.VITE_MAX_URL?'Подключён':'Нужна ссылка',url:import.meta.env.VITE_MAX_URL||''},
+    {id:'telegram',label:'Telegram',icon:'↗',caption:import.meta.env.VITE_TELEGRAM_URL?'Подключён':'Нужна ссылка',url:import.meta.env.VITE_TELEGRAM_URL||''},
+    {id:'whatsapp',label:'WhatsApp',icon:'W',caption:'8 800 333-88-37',url:import.meta.env.VITE_WHATSAPP_URL||'https://wa.me/78003338837'},
+    {id:'email',label:'Email',icon:'@',caption:import.meta.env.VITE_SUPPORT_EMAIL||'info@bath-dream.ru',url:'mailto:'+(import.meta.env.VITE_SUPPORT_EMAIL||'info@bath-dream.ru')},
+  ],[])
+
   const [active,setActive]=useState(current?'order-'+current.id:'manager')
+  const [activeChannel,setActiveChannel]=useState('internal')
   const [store,setStore]=useState(()=>readJSON(MESSENGER_KEY,{})||{})
   const [draft,setDraft]=useState('')
   const thread=threads.find(item=>item.id===active)||threads[0]
+  const channel=channels.find(item=>item.id===activeChannel)||channels[0]
   const defaults=[{id:'system-'+thread.id,side:'them',text:thread.defaultMessage,at:new Date().toISOString()}]
   const messages=store[thread.id]?.length?store[thread.id]:defaults
 
   const send=()=>{
     const text=draft.trim()
     if(!text) return
-    const nextMessages=[...messages,{id:'msg-'+Date.now(),side:'me',text,at:new Date().toISOString()}]
+    const nextMessages=[...messages,{id:'msg-'+Date.now(),side:'me',text,at:new Date().toISOString(),channel:'internal'}]
     const next={...store,[thread.id]:nextMessages}
     setStore(next)
     writeJSON(MESSENGER_KEY,next)
     setDraft('')
   }
 
+  const openChannel=item=>{
+    setActiveChannel(item.id)
+    if(item.id!=='internal'&&item.url){
+      window.open(item.url,item.id==='email'?'_self':'_blank','noopener,noreferrer')
+    }
+  }
+
   return <section className="cabinet-messenger">
     <div className="home-section__title messenger-title">
-      <div><h2>Мессенджер</h2><p>Обсуждение услуг и текущих проектов в кабинете.</p></div>
+      <div><h2>Мессенджер</h2><p>Связь с AW HOME через удобный канал.</p></div>
       <span>● На связи</span>
     </div>
+
+    <div className="messenger-channels" aria-label="Каналы связи">
+      {channels.map(item=><button
+        key={item.id}
+        type="button"
+        className={activeChannel===item.id?'messenger-channel is-active':'messenger-channel'}
+        onClick={()=>openChannel(item)}
+      >
+        <span className={'messenger-channel__icon messenger-channel__icon--'+item.id}>{item.icon}</span>
+        <span className="messenger-channel__copy"><strong>{item.label}</strong><small>{item.caption}</small></span>
+        <span className="messenger-channel__state">{item.id==='internal'?'●':item.url?'↗':'○'}</span>
+      </button>)}
+    </div>
+
     <div className="messenger-shell">
       <aside className="messenger-threads">
         {threads.map(item=>{
           const saved=store[item.id]
           const last=saved?.[saved.length-1]
-          return <button type="button" key={item.id} className={active===item.id?'is-active':''} onClick={()=>setActive(item.id)}>
+          return <button type="button" key={item.id} className={active===item.id?'is-active':''} onClick={()=>{setActive(item.id);setActiveChannel('internal')}}>
             <span className="messenger-avatar">{item.avatar}</span>
             <span className="messenger-thread-copy">
               <strong>{item.title}</strong>
@@ -155,20 +187,27 @@ function Messenger({current,onOpenOrder}){
 
       <div className="messenger-chat">
         <header className="messenger-chat__head">
-          <div><strong>{thread.title}</strong><span>{thread.subtitle}</span></div>
+          <div><strong>{thread.title}</strong><span>{activeChannel==='internal'?thread.subtitle:'Канал: '+channel.label}</span></div>
           {current&&thread.id==='order-'+current.id&&<button type="button" onClick={()=>onOpenOrder(current.id)}>Открыть заказ →</button>}
         </header>
-        <div className="messenger-messages">
-          {messages.map(message=><div key={message.id} className={message.side==='me'?'messenger-message is-me':'messenger-message'}>
-            <p>{message.text}</p><span>{messageTime(message.at)}</span>
-          </div>)}
-        </div>
-        <div className="messenger-compose">
-          <button type="button" title="Вложение" aria-label="Добавить вложение">＋</button>
-          <input value={draft} onChange={e=>setDraft(e.target.value)} onKeyDown={e=>{if(e.key==='Enter') send()}} placeholder="Напишите сообщение…"/>
-          <button className="messenger-send" type="button" disabled={!draft.trim()} onClick={send}>Отправить</button>
-        </div>
-        <small className="messenger-demo-note">MVP: переписка пока сохраняется локально в этом браузере.</small>
+
+        {activeChannel==='internal'?<>
+          <div className="messenger-messages">
+            {messages.map(message=><div key={message.id} className={message.side==='me'?'messenger-message is-me':'messenger-message'}>
+              <p>{message.text}</p><span>{messageTime(message.at)}</span>
+            </div>)}
+          </div>
+          <div className="messenger-compose">
+            <button type="button" title="Вложение" aria-label="Добавить вложение">＋</button>
+            <input value={draft} onChange={e=>setDraft(e.target.value)} onKeyDown={e=>{if(e.key==='Enter') send()}} placeholder="Напишите сообщение…"/>
+            <button className="messenger-send" type="button" disabled={!draft.trim()} onClick={send}>Отправить</button>
+          </div>
+          <small className="messenger-demo-note">Внутренний чат MVP пока сохраняется локально в этом браузере.</small>
+        </>:<div className="messenger-external">
+          <span className={'messenger-external__icon messenger-channel__icon--'+channel.id}>{channel.icon}</span>
+          <div><small>Внешний канал</small><h3>{channel.label}</h3><p>{channel.url?'Откроем официальный канал AW HOME в новом окне.':'Канал добавлен в интерфейс и ждёт подключения адреса аккаунта AW HOME.'}</p></div>
+          {channel.url?<button type="button" onClick={()=>openChannel(channel)}>Открыть {channel.label} ↗</button>:<span className="messenger-external__pending">Нужно настроить ссылку</span>}
+        </div>}
       </div>
     </div>
   </section>
