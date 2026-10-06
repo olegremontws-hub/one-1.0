@@ -10701,3 +10701,209 @@ body {
     grid-template-columns:1fr;
   }
 }
+
+
+/* AW HOME light canvas v0.25 */
+:root {
+  --aw-bg:#f7f6f2;
+  --aw-card:#ffffff;
+  --aw-navy:#07172e;
+  --aw-text:#12233b;
+  --aw-muted:#6f7c8e;
+  --aw-line:#e4e1da;
+  --aw-gold:#d5a052;
+  --aw-gold-soft:#fff8eb;
+}
+html,
+body,
+#root {
+  background:#f7f6f2;
+}
+body,
+.main,
+.main--workspace {
+  color:var(--aw-text);
+  background:#f7f6f2 !important;
+}
+.topbar {
+  background:rgba(255,255,255,.97) !important;
+  border-bottom:1px solid #e7e3db !important;
+  box-shadow:0 5px 18px rgba(7,23,46,.035) !important;
+}
+.brand__logo {
+  filter:none !important;
+}
+.footer {
+  background:#f7f6f2;
+  border-top-color:#dfdcd5;
+}
+.footer__brand img {
+  filter:none !important;
+}
+
+/* Marketplace: light hero with image preserved */
+.marketplace-hero--showcase {
+  border:1px solid #e4e1da !important;
+  background:
+    linear-gradient(90deg,
+      rgba(255,255,255,.99) 0%,
+      rgba(255,255,255,.96) 42%,
+      rgba(255,255,255,.76) 61%,
+      rgba(255,255,255,.08) 100%),
+    url("https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1800&q=88") center 58%/cover !important;
+  box-shadow:0 12px 32px rgba(7,23,46,.07) !important;
+}
+.marketplace-hero--showcase h1 {
+  color:#07172e !important;
+}
+.marketplace-hero--showcase .marketplace-hero__content > p:not(.eyebrow) {
+  color:#59697d !important;
+}
+.marketplace-hero--showcase .eyebrow {
+  color:#a76e1b !important;
+}
+.hero-service-search {
+  border-color:#d9d5cd !important;
+  box-shadow:0 8px 22px rgba(7,23,46,.08) !important;
+}
+.hero-trust-row {
+  border-top-color:#ddd9d1 !important;
+}
+.hero-trust-row span {
+  color:#44556a !important;
+}
+.market-home-banner {
+  border:1px solid #e4e1da;
+  background:
+    linear-gradient(90deg,
+      rgba(255,255,255,.99) 0%,
+      rgba(255,255,255,.95) 50%,
+      rgba(255,255,255,.30) 100%),
+    url("https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?auto=format&fit=crop&w=1600&q=86") center/cover !important;
+  box-shadow:0 9px 26px rgba(7,23,46,.05);
+}
+.market-home-banner > div,
+.market-home-banner h2 {
+  color:#07172e !important;
+}
+.market-home-banner span {
+  color:#a66d1a !important;
+}
+.market-home-banner p {
+  color:#667489 !important;
+}
+.market-home-stats > div,
+.market-category-card,
+.market-service-card,
+.marketplace-popular,
+.marketplace-trust-metrics {
+  background:#fff !important;
+}
+
+/* Cabinet: replace dark panels with white premium surfaces */
+.cabinet-current-project {
+  border:1px solid #e1ded7;
+  background:#fff !important;
+  box-shadow:0 10px 28px rgba(7,23,46,.055) !important;
+}
+.cabinet-current-project__copy {
+  color:#10233f !important;
+}
+.cabinet-current-project__copy > span,
+.cabinet-current-project__copy p {
+  color:#708095 !important;
+}
+.cabinet-current-project__copy h2 {
+  color:#07172e !important;
+}
+.cabinet-stage-line {
+  color:#394c63 !important;
+}
+.cabinet-stage-progress {
+  background:#ece9e2 !important;
+}
+.cabinet-stage-progress i {
+  background:#d6a24e !important;
+}
+.cabinet-current-project__copy > button {
+  color:#17253a !important;
+  background:linear-gradient(180deg,#f4cd83,#d7a14c) !important;
+}
+.cabinet-support-banner {
+  border:1px solid #e1ded7;
+  background:#fff !important;
+  box-shadow:0 8px 24px rgba(7,23,46,.05);
+}
+.cabinet-support-banner > div {
+  color:#10233f !important;
+}
+.cabinet-support-banner small {
+  color:#a16b1c !important;
+}
+.cabinet-support-banner h2 {
+  color:#07172e !important;
+}
+.cabinet-support-banner button {
+  color:#8e5e19 !important;
+}
+
+/* Service page and workflow callouts */
+.service-order-strip {
+  border:1px solid #dedad2 !important;
+  background:#fff !important;
+  color:#10233f !important;
+  box-shadow:0 8px 22px rgba(7,23,46,.04);
+}
+.service-order-strip h2 {
+  color:#07172e !important;
+}
+.service-detail-card,
+.service-benefits > div,
+.checkout-main,
+.checkout-service-mini,
+.checkout-price,
+.order-card,
+.room-card,
+.estimate-card,
+.work-panel,
+.approval-panel,
+.payment-panel,
+.document-panel,
+.data-toolbar {
+  background:#fff !important;
+}
+
+/* Authentication keeps an image but no dark slab */
+.main:not(.main--workspace) {
+  background:
+    linear-gradient(90deg,rgba(247,246,242,.98),rgba(247,246,242,.88)),
+    url("https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1800&q=84") center/cover !important;
+}
+.auth-card::before {
+  background:
+    linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.74)),
+    url("https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&w=1000&q=84") center/cover !important;
+  color:#07172e !important;
+  text-shadow:0 1px 10px rgba(255,255,255,.8);
+}
+
+/* Messenger light surfaces */
+.messenger-channel__icon--internal {
+  background:#f2eadc !important;
+  color:#07172e !important;
+}
+.messenger-external > button {
+  background:#07172e !important;
+  color:#fff !important;
+}
+
+@media (max-width:780px) {
+  .marketplace-hero--showcase {
+    background:
+      linear-gradient(180deg,
+        rgba(255,255,255,.98) 0%,
+        rgba(255,255,255,.92) 58%,
+        rgba(255,255,255,.22) 100%),
+      url("https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=86") center/cover !important;
+  }
+}
