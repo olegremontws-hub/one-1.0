@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { CONTACTS } from './config/contacts.js'
 import CreateOrder from './components/CreateOrder.jsx'
 import CreateRoughOrder from './components/CreateRoughOrder.jsx'
 import CreateWasteOrder from './components/CreateWasteOrder.jsx'
@@ -36,7 +37,7 @@ function Header({authenticated,onHome,onCabinet,onOrders,onCreateOrder,onLogout}
       </nav>}
 
       <div className="topbar__actions">
-        <a className="phone" href="tel:88003338837">8 (800) 333 88 37</a>
+        <a className="phone" href={CONTACTS.phoneHref}>{CONTACTS.phoneDisplay}</a>
         <button className="city" type="button">Москва <span>⌄</span></button>
         {authenticated&&<button className="project-create-nav" type="button" onClick={onCreateOrder}>＋ Создать проект</button>}
         {authenticated&&<div className="header-balance"><span>Баланс</span><strong>— ₽</strong></div>}
@@ -1570,9 +1571,9 @@ export default function App() {
         <span>© AW HOME · клиентский сервис</span>
       </div>
       <div className="footer__contacts">
-        <span>8 (800) 333 88 37</span>
+        <a href={CONTACTS.phoneHref}>{CONTACTS.phoneDisplay}</a>
         <span>Ежедневно 09:00–21:00</span>
-        <span>info@bath-dream.ru</span>
+        <a href={CONTACTS.emailHref}>{CONTACTS.email}</a>
       </div>
     </footer>
   </div>
