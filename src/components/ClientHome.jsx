@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { CONTACTS } from '../config/contacts.js'
 import { money, statusLabel } from '../domain/model.js'
 import { readJSON, writeJSON } from '../lib/storage.js'
 
@@ -118,10 +119,10 @@ function Messenger({current,onOpenOrder}){
 
   const channels=useMemo(()=>[
     {id:'internal',label:'AW HOME',icon:'AW',caption:'В кабинете',url:''},
-    {id:'max',label:'MAX',icon:'M',caption:import.meta.env.VITE_MAX_URL?'Подключён':'Нужна ссылка',url:import.meta.env.VITE_MAX_URL||''},
-    {id:'telegram',label:'Telegram',icon:'↗',caption:import.meta.env.VITE_TELEGRAM_URL?'Подключён':'Нужна ссылка',url:import.meta.env.VITE_TELEGRAM_URL||''},
-    {id:'whatsapp',label:'WhatsApp',icon:'W',caption:'8 800 333-88-37',url:import.meta.env.VITE_WHATSAPP_URL||'https://wa.me/78003338837'},
-    {id:'email',label:'Email',icon:'@',caption:import.meta.env.VITE_SUPPORT_EMAIL||'info@bath-dream.ru',url:'mailto:'+(import.meta.env.VITE_SUPPORT_EMAIL||'info@bath-dream.ru')},
+    {id:'max',label:'MAX',icon:'M',caption:CONTACTS.maxUrl?'Подключён':'Нужна ссылка',url:CONTACTS.maxUrl},
+    {id:'telegram',label:'Telegram',icon:'↗',caption:CONTACTS.telegramUrl?'Подключён':'Нужна ссылка',url:CONTACTS.telegramUrl},
+    {id:'whatsapp',label:'WhatsApp',icon:'W',caption:CONTACTS.phoneDisplay,url:CONTACTS.whatsappUrl},
+    {id:'email',label:'Email',icon:'@',caption:CONTACTS.email,url:CONTACTS.emailHref},
   ],[])
 
   const [active,setActive]=useState(current?'order-'+current.id:'manager')
