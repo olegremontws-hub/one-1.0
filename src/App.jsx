@@ -28,16 +28,20 @@ function Header({authenticated,onHome,onCabinet,onOrders,onCreateOrder,onLogout}
       <button className="brand brand-button" type="button" onClick={authenticated?onHome:undefined} aria-label="AW HOME">
         <img className="brand__logo" src={`${import.meta.env.BASE_URL}aw-home-logo.svg`} alt="AW HOME"/>
       </button>
-      <div className="topbar__meta">
+
+      {authenticated&&<nav className="topbar__nav" aria-label="Основная навигация">
+        <button className="nav-link" type="button" onClick={onHome}>Маркетплейс</button>
+        <button className="nav-link" type="button" onClick={onCabinet}>Кабинет</button>
+        <button className="nav-link" type="button" onClick={onOrders}>Мои заказы</button>
+      </nav>}
+
+      <div className="topbar__actions">
         <a className="phone" href="tel:88003338837">8 (800) 333 88 37</a>
-        <button className="city" type="button">Москва⌄</button>
-        {authenticated&&<button className="nav-link" type="button" onClick={onHome}>Маркетплейс</button>}
-        {authenticated&&<button className="nav-link" type="button" onClick={onCabinet}>Кабинет</button>}
-        {authenticated&&<button className="nav-link" type="button" onClick={onOrders}>Мои заказы</button>}
+        <button className="city" type="button">Москва <span>⌄</span></button>
         {authenticated&&<button className="project-create-nav" type="button" onClick={onCreateOrder}>＋ Создать проект</button>}
         {authenticated&&<div className="header-balance"><span>Баланс</span><strong>— ₽</strong></div>}
-        {authenticated&&<button className="header-utility" type="button" title="Уведомления">✉</button>}
-        {authenticated?<button className="header-profile" type="button" onClick={onLogout} title="Выйти">◎</button>:<span className="text-button">Войти</span>}
+        {authenticated&&<button className="header-utility" type="button" title="Сообщения и уведомления" aria-label="Сообщения и уведомления">✉</button>}
+        {authenticated?<button className="header-profile" type="button" onClick={onLogout} title="Выйти" aria-label="Выйти">◎</button>:<span className="text-button">Войти</span>}
       </div>
     </div>
   </header>
