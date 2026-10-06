@@ -127,6 +127,12 @@ function ProfileStep({type,contact,method,onBack,onNext,busy,error}) {
   </>
 }
 
+function serviceVisual(type){
+  if(type==='waste') return 'https://images.unsplash.com/photo-1519003722824-194d4455a60c?auto=format&fit=crop&w=1000&q=82'
+  if(type==='rough') return 'https://images.unsplash.com/photo-1590725121839-892b458a74fe?auto=format&fit=crop&w=1000&q=82'
+  return 'https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fit=crop&w=1000&q=82'
+}
+
 function ServicesPage({onDemolition,onWaste,onRough}) {
   return <section className="services-page">
     <div className="services-hero">
@@ -138,7 +144,7 @@ function ServicesPage({onDemolition,onWaste,onRough}) {
     <div className="services-grid">
       <button className="service-card service-card--demolition" type="button" onClick={onDemolition}>
         <div className="service-card__top"><span className="service-card__number">01</span><span className="service-card__badge">Расчёт по помещениям</span></div>
-        <div className="service-card__symbol">Д</div>
+        <div className="service-card__visual" style={{backgroundImage:`url("${serviceVisual('demolition')}")`}}><span>Демонтаж</span></div>
         <div className="service-card__content">
           <h2>Демонтаж</h2>
           <p>Расчёт демонтажных работ по помещениям: геометрия, объёмы, смета, мусор и логистика.</p>
@@ -148,7 +154,7 @@ function ServicesPage({onDemolition,onWaste,onRough}) {
 
       <button className="service-card service-card--waste" type="button" onClick={onWaste}>
         <div className="service-card__top"><span className="service-card__number">02</span><span className="service-card__badge">Отдельная услуга</span></div>
-        <div className="service-card__symbol">В</div>
+        <div className="service-card__visual" style={{backgroundImage:`url("${serviceVisual('waste')}")`}}><span>Вывоз мусора</span></div>
         <div className="service-card__content">
           <h2>Вывоз строительного мусора</h2>
           <p>Отдельный заказ на вывоз: адрес, этаж, лифт, объём отходов, погрузка, транспорт и утилизация.</p>
@@ -158,7 +164,7 @@ function ServicesPage({onDemolition,onWaste,onRough}) {
 
       <button className="service-card service-card--rough" type="button" onClick={onRough}>
         <div className="service-card__top"><span className="service-card__number">03</span><span className="service-card__badge">Расчёт по помещениям</span></div>
-        <div className="service-card__symbol">Ч</div>
+        <div className="service-card__visual" style={{backgroundImage:`url("${serviceVisual('rough')}")`}}><span>Черновой ремонт</span></div>
         <div className="service-card__content">
           <h2>Черновой ремонт</h2>
           <p>Черновые работы по полу, стенам, потолку, перегородкам, электрике и сантехнике с расчётом по помещениям.</p>
@@ -267,6 +273,7 @@ function OrdersDashboard({orders,onCreateOrder,onMarketplace,onOpenOrder,onEditO
       {orders.length>0&&<section className="project-orders">
         <div className="market-orders__head"><div><p className="eyebrow">Проекты</p><h2>Ремонт и стройка</h2></div><span>{orders.length}</span></div>
         <div className="order-list">{orders.map(order=><article className="order-card" key={order.id}>
+          <span className="order-card__visual" style={{backgroundImage:`url("${serviceVisual(order.serviceType)}")`}}/>
           <div className="order-card__top"><div><StatusBadge status={order.status}/><small className="order-service-label">{order.serviceType==='rough'?'Черновой ремонт':order.serviceType==='waste'?'Вывоз мусора':'Демонтаж'}</small><h2>Заказ №{order.id}</h2></div><strong>{money(order.total)} ₽</strong></div>
           <dl>
             <div><dt>Объект</dt><dd>{order.objectLabel||'—'}</dd></div>
@@ -1113,6 +1120,10 @@ function WasteOrderDetails({order,onBack,onEdit,onStatusChange,onDuplicate,onDel
       <div className="detail-head-actions"><button className="button button--soft" type="button" onClick={()=>window.print()}>Печать расчёта</button><button className="button button--compact" type="button" onClick={onEdit}>Редактировать</button></div>
     </div>
 
+    <div className="order-detail-cover" style={{backgroundImage:`linear-gradient(90deg,rgba(7,23,46,.82),rgba(7,23,46,.16)),url("${serviceVisual('waste')}")`}}>
+      <span>Вывоз строительного мусора</span><strong>{order.address||'Объект AW HOME'}</strong>
+    </div>
+
     <div className="order-control-bar">
       <div><span>Статус заказа</span><select value={order.status||'draft'} onChange={e=>onStatusChange(e.target.value)}>{ORDER_STATUSES.map(item=><option key={item.id} value={item.id}>{item.label}</option>)}</select></div>
       <div className="order-control-bar__actions"><button type="button" onClick={onDuplicate}>Дублировать</button><button className="danger-link" type="button" onClick={onDelete}>Удалить</button></div>
@@ -1176,6 +1187,10 @@ function OrderDetails({order,onBack,onEdit,onStatusChange,onDuplicate,onDelete})
         <p className="workspace__subtitle">{order.address}{order.priceBook&&<> · Прайс {order.priceBook.code} v{order.priceBook.version}</>}</p>
       </div>
       <div className="detail-head-actions"><button className="button button--soft" type="button" onClick={()=>window.print()}>Печать сметы</button><button className="button button--compact" type="button" onClick={onEdit}>Редактировать</button></div>
+    </div>
+
+    <div className="order-detail-cover" style={{backgroundImage:`linear-gradient(90deg,rgba(7,23,46,.82),rgba(7,23,46,.16)),url("${serviceVisual(order.serviceType)}")`}}>
+      <span>{serviceLabel}</span><strong>{order.address||order.objectLabel||'Объект AW HOME'}</strong>
     </div>
 
     <div className="order-control-bar">
