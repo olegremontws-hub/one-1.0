@@ -30,8 +30,8 @@ jobs:
       - name: Build portable preview
         run: npm run build -- --base=./
 
-      - name: Create v0.23 preview entry
-        run: cp dist/index.html dist/v0.23.html
+      - name: Create v0.24 preview entry
+        run: cp dist/index.html dist/v0.24.html
 
       - name: Pack site
         run: |
