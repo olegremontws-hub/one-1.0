@@ -3,6 +3,7 @@ import { money, statusLabel } from '../domain/model.js'
 import { readJSON, writeJSON } from '../lib/storage.js'
 
 const ESTIMATOR_KEY='awhome.estimator.appointment'
+const MESSENGER_KEY='awhome.client.messenger'
 
 function clientName(profile){
   if(!profile) return 'Клиент'
@@ -74,6 +75,88 @@ function nextAction(order){
   if(order.status==='acceptance') return 'Принять результат работ'
   if(order.status==='done') return 'Заказ завершён'
   return 'Открыть карточку заказа'
+}
+
+function messageTime(value){
+  const date=new Date(value)
+  if(Number.isNaN(date.getTime())) return ''
+  return date.toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'})
+}
+
+function Messenger({current,onOpenOrder}){
+  const threads=useMemo(()=>[
+    {
+      id:'manager',
+      avatar:'AW',
+      title:'Менеджер AW HOME',
+      subtitle:'Подбор услуг и вопросы',
+      defaultMessage:'Здравствуйте! Здесь можно вести переписку с менеджером AW HOME по услугам и заказам.',
+    },
+    ...(current?[{
+      id:'order-'+current.id,
+      avatar:'№',
+      title:'Заказ №'+current.id,
+      subtitle:serviceTitle(current)+' · '+orderStage(current),
+      defaultMessage:'Чат проекта создан. Сообщения по заказу №'+current.id+' будут собраны здесь.',
+    }]:[]),
+  ],[current])
+  const [active,setActive]=useState(current?'order-'+current.id:'manager')
+  const [store,setStore]=useState(()=>readJSON(MESSENGER_KEY,{})||{})
+  const [draft,setDraft]=useState('')
+  const thread=threads.find(item=>item.id===active)||threads[0]
+  const defaults=[{id:'system-'+thread.id,side:'them',text:thread.defaultMessage,at:new Date().toISOString()}]
+  const messages=store[thread.id]?.length?store[thread.id]:defaults
+
+  const send=()=>{
+    const text=draft.trim()
+    if(!text) return
+    const nextMessages=[...messages,{id:'msg-'+Date.now(),side:'me',text,at:new Date().toISOString()}]
+    const next={...store,[thread.id]:nextMessages}
+    setStore(next)
+    writeJSON(MESSENGER_KEY,next)
+    setDraft('')
+  }
+
+  return <section className="cabinet-messenger">
+    <div className="home-section__title messenger-title">
+      <div><h2>Мессенджер</h2><p>Обсуждение услуг и текущих проектов в кабинете.</p></div>
+      <span>● На связи</span>
+    </div>
+    <div className="messenger-shell">
+      <aside className="messenger-threads">
+        {threads.map(item=>{
+          const saved=store[item.id]
+          const last=saved?.[saved.length-1]
+          return <button type="button" key={item.id} className={active===item.id?'is-active':''} onClick={()=>setActive(item.id)}>
+            <span className="messenger-avatar">{item.avatar}</span>
+            <span className="messenger-thread-copy">
+              <strong>{item.title}</strong>
+              <small>{last?.text||item.subtitle}</small>
+            </span>
+            <span className="messenger-thread-dot"/>
+          </button>
+        })}
+      </aside>
+
+      <div className="messenger-chat">
+        <header className="messenger-chat__head">
+          <div><strong>{thread.title}</strong><span>{thread.subtitle}</span></div>
+          {current&&thread.id==='order-'+current.id&&<button type="button" onClick={()=>onOpenOrder(current.id)}>Открыть заказ →</button>}
+        </header>
+        <div className="messenger-messages">
+          {messages.map(message=><div key={message.id} className={message.side==='me'?'messenger-message is-me':'messenger-message'}>
+            <p>{message.text}</p><span>{messageTime(message.at)}</span>
+          </div>)}
+        </div>
+        <div className="messenger-compose">
+          <button type="button" title="Вложение" aria-label="Добавить вложение">＋</button>
+          <input value={draft} onChange={e=>setDraft(e.target.value)} onKeyDown={e=>{if(e.key==='Enter') send()}} placeholder="Напишите сообщение…"/>
+          <button className="messenger-send" type="button" disabled={!draft.trim()} onClick={send}>Отправить</button>
+        </div>
+        <small className="messenger-demo-note">MVP: переписка пока сохраняется локально в этом браузере.</small>
+      </div>
+    </div>
+  </section>
 }
 
 function QuickMetric({label,value,caption,onClick}){
@@ -157,6 +240,8 @@ export default function ClientHome({
       <QuickMetric label="Готовность текущего проекта" value={current?progress+'%':'—'} caption={current?orderStage(current):'Создайте проект'} onClick={current?()=>onOpenOrder(current.id):onCreateProject}/>
       <QuickMetric label="Следующее действие" value={current?nextAction(current):'Создать проект'} caption={current?'Заказ №'+current.id:'Выберите услугу'} onClick={current?()=>onOpenOrder(current.id):onCreateProject}/>
     </div>
+
+    <Messenger current={current} onOpenOrder={onOpenOrder}/>
 
     <section className="home-section">
       <div className="home-section__title">
